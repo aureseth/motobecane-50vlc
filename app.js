@@ -1934,4 +1934,380 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  /* -----------------------------------------------------------------
+   * 19. CARNET D'ENTRETIEN & SUIVI KILOMÉTRIQUE
+   * -----------------------------------------------------------------
+   * Tout est fourni par l'utilisateur (relevé compteur, intervalles de
+   * rappel, entrées de carnet) : aucune valeur par défaut n'est inventée
+   * ici, conformément à la règle du projet de ne jamais deviner un chiffre
+   * non sourcé. Persisté via `store` (localStorage), propre à ce navigateur.
+   * ----------------------------------------------------------------- */
+  const ODO_KEY = 'motobecane_50vcl_odometer';
+  const RAPPELS_KEY = 'motobecane_50vcl_rappels';
+  const CARNET_KEY = 'motobecane_50vcl_carnet';
+
+  const odoInput = document.getElementById('odo-input');
+  const btnOdoSave = document.getElementById('btn-odo-save');
+  const odoStatus = document.getElementById('odo-status');
+
+  const rappelsList = document.getElementById('rappels-list');
+  const rappelLabelInput = document.getElementById('rappel-label-input');
+  const rappelIntervalInput = document.getElementById('rappel-interval-input');
+  const btnRappelAdd = document.getElementById('btn-rappel-add');
+
+  const carnetDateInput = document.getElementById('carnet-date-input');
+  const carnetKmInput = document.getElementById('carnet-km-input');
+  const carnetTitreInput = document.getElementById('carnet-titre-input');
+  const carnetNoteInput = document.getElementById('carnet-note-input');
+  const btnCarnetAdd = document.getElementById('btn-carnet-add');
+  const carnetEntriesList = document.getElementById('carnet-entries-list');
+  const carnetEmptyMsg = document.getElementById('carnet-empty-msg');
+
+  function genId() {
+    return 'id-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
+  }
+
+  function formatDateFr(isoDate) {
+    if (!isoDate) return '';
+    const [y, m, d] = isoDate.split('-');
+    if (!y || !m || !d) return isoDate;
+    return `${d}/${m}/${y}`;
+  }
+
+  // --- Kilométrage ---
+  function loadOdo() {
+    try {
+      const raw = store.get(ODO_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) { return null; }
+  }
+
+  function saveOdo(km) {
+    const data = { km, updatedAt: new Date().toISOString().slice(0, 10) };
+    store.set(ODO_KEY, JSON.stringify(data));
+    return data;
+  }
+
+  function renderOdoStatus() {
+    if (!odoStatus) return;
+    const odo = loadOdo();
+    if (!odo) {
+      odoStatus.textContent = 'Aucun relevé enregistré pour l\'instant.';
+      if (odoInput) odoInput.value = '';
+    } else {
+      odoStatus.textContent = `Dernier relevé : ${odo.km.toLocaleString('fr-FR')} km (le ${formatDateFr(odo.updatedAt)}).`;
+      if (odoInput) odoInput.value = odo.km;
+    }
+    renderRappels(); // les seuils dépendent du kilométrage actuel
+  }
+
+  if (btnOdoSave) {
+    btnOdoSave.addEventListener('click', () => {
+      const val = parseInt(odoInput.value, 10);
+      if (isNaN(val) || val < 0) {
+        alert('Entrez un kilométrage valide (nombre positif).');
+        return;
+      }
+      saveOdo(val);
+      renderOdoStatus();
+    });
+  }
+
+  // --- Rappels d'entretien ---
+  function loadRappels() {
+    try {
+      const raw = store.get(RAPPELS_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) { return []; }
+  }
+
+  function saveRappels(list) {
+    store.set(RAPPELS_KEY, JSON.stringify(list));
+  }
+
+  function renderRappels() {
+    if (!rappelsList) return;
+    const rappels = loadRappels();
+    const odo = loadOdo();
+    const currentKm = odo ? odo.km : null;
+
+    if (rappels.length === 0) {
+      rappelsList.innerHTML = '<p class="text-sm text-muted">Aucun rappel défini pour l\'instant.</p>';
+      return;
+    }
+
+    rappelsList.innerHTML = rappels.map((r) => {
+      const lastDone = typeof r.lastDoneKm === 'number' ? r.lastDoneKm : null;
+      const nextDueKm = lastDone !== null ? lastDone + r.intervalKm : null;
+      let statusText = 'Jamais marqué comme fait — pas de seuil calculable.';
+      let isDue = false;
+
+      if (lastDone !== null) {
+        statusText = `Dernier fait à ${lastDone.toLocaleString('fr-FR')} km · Prochain vers ${nextDueKm.toLocaleString('fr-FR')} km`;
+        if (currentKm !== null && currentKm >= nextDueKm) {
+          isDue = true;
+          statusText += ` · ⚠️ dépassé de ${(currentKm - nextDueKm).toLocaleString('fr-FR')} km`;
+        } else if (currentKm !== null) {
+          statusText += ` (reste ${(nextDueKm - currentKm).toLocaleString('fr-FR')} km)`;
+        }
+      }
+
+      return `
+        <div class="rappel-item${isDue ? ' rappel-due' : ''}" data-rappel-id="${r.id}">
+          <div class="rappel-item-main">
+            <strong>${isDue ? '🔴 ' : ''}${r.label}</strong>
+            <span class="rappel-item-sub">Intervalle : ${r.intervalKm.toLocaleString('fr-FR')} km — ${statusText}</span>
+          </div>
+          <div style="display:flex; gap:4px; flex-shrink:0;">
+            <button class="btn btn-outline btn-sm btn-rappel-done" data-rappel-id="${r.id}" type="button" title="Marquer comme fait au kilométrage actuel">✓ Fait</button>
+            <button class="btn-icon-delete btn-rappel-delete" data-rappel-id="${r.id}" type="button" title="Supprimer ce rappel">✕</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  if (btnRappelAdd) {
+    btnRappelAdd.addEventListener('click', () => {
+      const label = rappelLabelInput.value.trim();
+      const interval = parseInt(rappelIntervalInput.value, 10);
+      if (!label) {
+        alert('Donnez un nom à ce rappel.');
+        return;
+      }
+      if (isNaN(interval) || interval <= 0) {
+        alert('Entrez un intervalle en km valide (nombre positif).');
+        return;
+      }
+      const rappels = loadRappels();
+      rappels.push({ id: genId(), label, intervalKm: interval, lastDoneKm: null });
+      saveRappels(rappels);
+      rappelLabelInput.value = '';
+      rappelIntervalInput.value = '';
+      renderRappels();
+    });
+  }
+
+  if (rappelsList) {
+    rappelsList.addEventListener('click', (e) => {
+      const doneBtn = e.target.closest('.btn-rappel-done');
+      const delBtn = e.target.closest('.btn-rappel-delete');
+      if (doneBtn) {
+        const id = doneBtn.getAttribute('data-rappel-id');
+        const odo = loadOdo();
+        if (!odo) {
+          alert('Enregistrez d\'abord un relevé de kilométrage ci-dessus.');
+          return;
+        }
+        const rappels = loadRappels();
+        const r = rappels.find((x) => x.id === id);
+        if (r) {
+          r.lastDoneKm = odo.km;
+          saveRappels(rappels);
+          renderRappels();
+        }
+      } else if (delBtn) {
+        const id = delBtn.getAttribute('data-rappel-id');
+        if (confirm('Supprimer ce rappel ?')) {
+          const rappels = loadRappels().filter((x) => x.id !== id);
+          saveRappels(rappels);
+          renderRappels();
+        }
+      }
+    });
+  }
+
+  // --- Carnet d'entretien ---
+  function loadCarnet() {
+    try {
+      const raw = store.get(CARNET_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) { return []; }
+  }
+
+  function saveCarnet(list) {
+    store.set(CARNET_KEY, JSON.stringify(list));
+  }
+
+  function renderCarnet() {
+    if (!carnetEntriesList) return;
+    const entries = loadCarnet().slice().sort((a, b) => (a.date < b.date ? 1 : -1));
+
+    if (entries.length === 0) {
+      carnetEntriesList.innerHTML = '';
+      if (carnetEmptyMsg) carnetEmptyMsg.style.display = 'block';
+      return;
+    }
+    if (carnetEmptyMsg) carnetEmptyMsg.style.display = 'none';
+
+    carnetEntriesList.innerHTML = entries.map((entry) => `
+      <div class="carnet-entry" data-entry-id="${entry.id}">
+        <div class="carnet-entry-main">
+          <strong>${entry.titre || '(Sans titre)'}</strong>
+          <span class="carnet-entry-sub">${formatDateFr(entry.date)}${entry.km ? ' · ' + Number(entry.km).toLocaleString('fr-FR') + ' km' : ''}</span>
+          ${entry.note ? `<div class="carnet-entry-note">${entry.note.replace(/</g, '&lt;')}</div>` : ''}
+        </div>
+        <button class="btn-icon-delete btn-carnet-delete" data-entry-id="${entry.id}" type="button" title="Supprimer cette entrée">✕</button>
+      </div>
+    `).join('');
+  }
+
+  if (btnCarnetAdd) {
+    btnCarnetAdd.addEventListener('click', () => {
+      const date = carnetDateInput.value || new Date().toISOString().slice(0, 10);
+      const km = carnetKmInput.value ? parseInt(carnetKmInput.value, 10) : null;
+      const titre = carnetTitreInput.value.trim();
+      const note = carnetNoteInput.value.trim();
+
+      if (!titre) {
+        alert('Décrivez brièvement l\'intervention (champ "Intervention").');
+        return;
+      }
+
+      const entries = loadCarnet();
+      entries.push({ id: genId(), date, km, titre, note });
+      saveCarnet(entries);
+
+      carnetDateInput.value = '';
+      carnetKmInput.value = '';
+      carnetTitreInput.value = '';
+      carnetNoteInput.value = '';
+      renderCarnet();
+    });
+  }
+
+  if (carnetEntriesList) {
+    carnetEntriesList.addEventListener('click', (e) => {
+      const delBtn = e.target.closest('.btn-carnet-delete');
+      if (delBtn) {
+        const id = delBtn.getAttribute('data-entry-id');
+        if (confirm('Supprimer cette entrée du carnet ?')) {
+          const entries = loadCarnet().filter((x) => x.id !== id);
+          saveCarnet(entries);
+          renderCarnet();
+        }
+      }
+    });
+  }
+
+  if (odoInput || rappelsList || carnetEntriesList) {
+    renderOdoStatus();
+    renderRappels();
+    renderCarnet();
+  }
+
+  /* -----------------------------------------------------------------
+   * 20. CALCULATEUR DE BUDGET (ONGLET RÉFÉRENCES)
+   * -----------------------------------------------------------------
+   * Construit dynamiquement à partir des .ref-card déjà présentes dans le
+   * DOM (catalogue de l'onglet Références) : aucun prix n'est dupliqué ou
+   * ressaisi ici, pour ne jamais désynchroniser le budget du catalogue.
+   * ----------------------------------------------------------------- */
+  const BUDGET_KEY = 'motobecane_50vcl_budget_owned';
+  const budgetChecklist = document.getElementById('budget-checklist');
+  const budgetTotalOwned = document.getElementById('budget-total-owned');
+  const budgetTotalRemaining = document.getElementById('budget-total-remaining');
+  const budgetTotalAll = document.getElementById('budget-total-all');
+  const budgetNote = document.getElementById('budget-note');
+  const btnBudgetReset = document.getElementById('btn-budget-reset');
+
+  function formatEuro(n) {
+    return n.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+  }
+
+  function getBudgetItems() {
+    const cards = document.querySelectorAll('.ref-card');
+    let hasPerUnit = false;
+    const items = Array.from(cards).map((card) => {
+      const id = card.id || genId();
+      const titleEl = card.querySelector('.ref-card-title');
+      const priceEl = card.querySelector('.ref-price-tag');
+      const statusEl = card.querySelector('.ref-status-badge');
+      const title = titleEl ? titleEl.textContent.trim() : '(Sans nom)';
+      const priceRaw = priceEl ? priceEl.textContent.trim() : '';
+      const perUnit = /\/\s*L\b/i.test(priceRaw);
+      if (perUnit) hasPerUnit = true;
+      const match = priceRaw.replace(/\s/g, '').match(/([\d]+,[\d]+)/);
+      const priceValue = match ? parseFloat(match[1].replace(',', '.')) : 0;
+      const ownedByDefault = !!statusEl && /status-(achete|installe)/.test(statusEl.className);
+      return { id, title, priceRaw, priceValue, ownedByDefault, perUnit };
+    });
+    return { items, hasPerUnit };
+  }
+
+  function loadBudgetOverrides() {
+    try {
+      const raw = store.get(BUDGET_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch (e) { return {}; }
+  }
+
+  function saveBudgetOverrides(overrides) {
+    store.set(BUDGET_KEY, JSON.stringify(overrides));
+  }
+
+  function renderBudget() {
+    if (!budgetChecklist) return;
+    const { items, hasPerUnit } = getBudgetItems();
+    if (items.length === 0) return;
+
+    const overrides = loadBudgetOverrides();
+
+    budgetChecklist.innerHTML = items.map((item) => {
+      const checked = Object.prototype.hasOwnProperty.call(overrides, item.id) ? overrides[item.id] : item.ownedByDefault;
+      return `
+        <div class="budget-item">
+          <label>
+            <input type="checkbox" class="budget-item-checkbox" data-budget-id="${item.id}" ${checked ? 'checked' : ''}>
+            <span class="budget-item-name">${item.title}</span>
+          </label>
+          <span class="budget-item-price">${item.priceRaw || '—'}</span>
+        </div>
+      `;
+    }).join('');
+
+    let ownedTotal = 0;
+    let allTotal = 0;
+    items.forEach((item) => {
+      const checked = Object.prototype.hasOwnProperty.call(overrides, item.id) ? overrides[item.id] : item.ownedByDefault;
+      allTotal += item.priceValue;
+      if (checked) ownedTotal += item.priceValue;
+    });
+    const remainingTotal = allTotal - ownedTotal;
+
+    if (budgetTotalOwned) budgetTotalOwned.textContent = formatEuro(ownedTotal);
+    if (budgetTotalRemaining) budgetTotalRemaining.textContent = formatEuro(remainingTotal);
+    if (budgetTotalAll) budgetTotalAll.textContent = formatEuro(allTotal);
+    if (budgetNote) {
+      budgetNote.textContent = hasPerUnit
+        ? 'Remarque : un ou plusieurs prix sont au litre (ex. huile 2T) et comptés ici pour une unité — ajustez mentalement selon votre consommation réelle.'
+        : '';
+    }
+  }
+
+  if (budgetChecklist) {
+    budgetChecklist.addEventListener('change', (e) => {
+      const cb = e.target.closest('.budget-item-checkbox');
+      if (!cb) return;
+      const id = cb.getAttribute('data-budget-id');
+      const overrides = loadBudgetOverrides();
+      overrides[id] = cb.checked;
+      saveBudgetOverrides(overrides);
+      renderBudget();
+    });
+  }
+
+  if (btnBudgetReset) {
+    btnBudgetReset.addEventListener('click', () => {
+      if (confirm('Réinitialiser toutes les cases aux statuts par défaut du catalogue ?')) {
+        saveBudgetOverrides({});
+        renderBudget();
+      }
+    });
+  }
+
+  if (budgetChecklist) {
+    renderBudget();
+  }
+
 });
