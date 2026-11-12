@@ -1,0 +1,32 @@
+{
+  "name": "Guide Motobécane 50 VLC — Atelier AV7",
+  "short_name": "Mob 50 VLC",
+  "description": "Guide technique, didactique et interactif pour l'entretien et l'optimisation discrète d'une Motobécane 50 VLC (moteur AV7).",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#F8FAFC",
+  "theme_color": "#0E2841",
+  "lang": "fr",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
