@@ -715,6 +715,197 @@ input[type="range"] {
   border-color: var(--border-focus);
 }
 
+.form-label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted, #78716C);
+  margin-bottom: 4px;
+}
+
+textarea.form-input {
+  resize: vertical;
+  font-family: var(--font-sans);
+}
+
+/* ----- Carnet d'entretien & rappels (tab-carnet) ----- */
+.rappels-list, .carnet-entries-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.rappel-item, .carnet-entry {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  background: #F8FAFC;
+  min-width: 0;
+}
+
+.rappel-item.rappel-due {
+  border-color: #DC2626;
+  background: rgba(220, 38, 38, 0.07);
+}
+
+.rappel-item-main, .carnet-entry-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.rappel-item-main strong, .carnet-entry-main strong {
+  font-size: 0.92rem;
+}
+
+.rappel-item-sub, .carnet-entry-sub {
+  font-size: 0.8rem;
+  color: var(--text-muted, #78716C);
+}
+
+.carnet-entry-note {
+  font-size: 0.85rem;
+  margin-top: 4px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.btn-icon-delete {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+  color: #94A3B8;
+  flex-shrink: 0;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm, 4px);
+}
+
+.btn-icon-delete:hover {
+  color: #DC2626;
+  background: rgba(220, 38, 38, 0.08);
+}
+
+body.theme-dark .rappel-item, body.theme-dark .carnet-entry {
+  background: rgba(255,255,255,0.04);
+  border-color: rgba(255,255,255,0.12);
+}
+
+@media (max-width: 480px) {
+  .rappel-item, .carnet-entry {
+    flex-wrap: wrap;
+  }
+}
+
+/* ----- Calculateur de budget (tab-references) ----- */
+.budget-totals-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin: 12px 0;
+}
+
+.budget-total-box {
+  min-width: 0;
+  padding: 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  background: #F8FAFC;
+  text-align: center;
+}
+
+.budget-total-box.highlight {
+  background: linear-gradient(135deg, #0E2841 0%, #153A5E 100%);
+  border-color: transparent;
+}
+
+.budget-total-box.highlight .budget-total-lbl,
+.budget-total-box.highlight .budget-total-val {
+  color: #FFFFFF;
+}
+
+.budget-total-lbl {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--text-muted, #78716C);
+  margin-bottom: 4px;
+}
+
+.budget-total-val {
+  display: block;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--primary-orange, #E65100);
+}
+
+.budget-checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 340px;
+  overflow-y: auto;
+  padding: 4px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+}
+
+.budget-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm, 4px);
+  min-width: 0;
+}
+
+.budget-item:hover {
+  background: #F8FAFC;
+}
+
+.budget-item label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+  cursor: pointer;
+}
+
+.budget-item-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.88rem;
+}
+
+.budget-item-price {
+  flex-shrink: 0;
+  font-weight: 600;
+  font-size: 0.88rem;
+  margin-left: auto;
+}
+
+body.theme-dark .budget-total-box {
+  background: rgba(255,255,255,0.04);
+  border-color: rgba(255,255,255,0.12);
+}
+
+body.theme-dark .budget-item:hover {
+  background: rgba(255,255,255,0.06);
+}
+
+@media (max-width: 600px) {
+  .budget-totals-row {
+    grid-template-columns: 1fr;
+  }
+}
+
 .calc-result-box {
   background: linear-gradient(135deg, #0E2841 0%, #153A5E 100%);
   color: #FFFFFF;

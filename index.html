@@ -78,6 +78,7 @@
           <button class="nav-btn" data-tab="tab-archives">Archives &amp; Mines</button>
           <button class="nav-btn" data-tab="tab-securite">S&#233;curit&#233; &amp; L&#233;galit&#233;</button>
           <button class="nav-btn" data-tab="tab-atelier">Checklist Atelier</button>
+          <button class="nav-btn" data-tab="tab-carnet">Carnet &amp; Kilom&#233;trage</button>
         </div>
       </nav>
 
@@ -3052,6 +3053,31 @@
         </div>
       </div>
 
+      <!-- CALCULATEUR DE BUDGET -->
+      <div class="card budget-card mb-3">
+        <h3>💰 Calculateur de Budget</h3>
+        <p class="text-sm text-muted">
+          Construit automatiquement à partir du catalogue ci-dessous (aucun prix saisi séparément) : cochez ce que vous avez déjà en main pour suivre ce qu'il vous reste à dépenser. Votre sélection est mémorisée dans ce navigateur. Les pièces déjà marquées « Déjà Acheté/Installé » dans le catalogue sont pré-cochées.
+        </p>
+        <div class="budget-totals-row">
+          <div class="budget-total-box">
+            <span class="budget-total-lbl">Déjà en main</span>
+            <span class="budget-total-val" id="budget-total-owned">0,00 €</span>
+          </div>
+          <div class="budget-total-box highlight">
+            <span class="budget-total-lbl">Reste à acheter</span>
+            <span class="budget-total-val" id="budget-total-remaining">0,00 €</span>
+          </div>
+          <div class="budget-total-box">
+            <span class="budget-total-lbl">Total du projet (catalogue)</span>
+            <span class="budget-total-val" id="budget-total-all">0,00 €</span>
+          </div>
+        </div>
+        <div id="budget-checklist" class="budget-checklist"></div>
+        <p class="text-sm text-muted" style="margin-top: 8px;" id="budget-note"></p>
+        <button id="btn-budget-reset" class="btn btn-outline btn-sm" type="button" style="margin-top: 8px;">↺ Réinitialiser aux statuts du catalogue</button>
+      </div>
+
       <!-- FILTERS & TOOLBAR -->
       <div class="ref-toolbar-card card">
         <div class="ref-search-row">
@@ -4683,6 +4709,80 @@
             </tbody>
           </table>
         </div>
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- TAB : CARNET D'ENTRETIEN & KILOMÉTRAGE      -->
+    <!-- ========================================== -->
+    <div id="tab-carnet" class="tab-pane">
+      <div class="section-intro">
+        <span class="sub-heading">Suivi Personnel</span>
+        <h2>Carnet d'Entretien & Suivi Kilométrique</h2>
+        <p>
+          Ces outils sont vides au départ : tout ce qu'ils affichent vient de ce <strong>vous</strong> saisissez, rien n'est pré-rempli ou deviné à votre place. Les intervalles de rappel sont à définir par vous-même (aucune source fiable de ce projet ne donne de périodicité officielle en kilomètres pour l'AV7) — à titre de repère générique pour un 2-temps ancien, beaucoup de mécaniciens contrôlent variateur/rupteurs/bougie tous les 1000 à 2000 km, mais ajustez selon votre usage et votre ressenti. Les données sont stockées uniquement dans ce navigateur (localStorage) : elles ne sont pas envoyées ailleurs, et un autre appareil ou navigateur ne les verra pas.
+        </p>
+      </div>
+
+      <!-- KILOMÉTRAGE ACTUEL -->
+      <div class="card mb-3">
+        <h3>🛣️ Kilométrage actuel</h3>
+        <div class="grid-2col" style="align-items: end;">
+          <div>
+            <label for="odo-input" class="form-label">Relevé du compteur (km)</label>
+            <input type="number" id="odo-input" class="form-input" min="0" step="1" placeholder="Ex : 12450">
+          </div>
+          <div>
+            <button id="btn-odo-save" class="btn btn-sm" type="button">💾 Enregistrer ce relevé</button>
+          </div>
+        </div>
+        <p class="text-sm text-muted" style="margin-top: 10px;" id="odo-status">Aucun relevé enregistré pour l'instant.</p>
+      </div>
+
+      <!-- RAPPELS D'ENTRETIEN -->
+      <div class="card mb-3">
+        <h3>🔔 Rappels d'entretien personnalisés</h3>
+        <p class="text-sm text-muted">Définissez vos propres intervalles. Un rappel devient rouge quand le kilométrage actuel (ci-dessus) dépasse le seuil.</p>
+        <div id="rappels-list" class="rappels-list"></div>
+        <div class="grid-3col" style="margin-top: 12px; align-items: end;">
+          <div>
+            <label for="rappel-label-input" class="form-label">Nom du rappel</label>
+            <input type="text" id="rappel-label-input" class="form-input" placeholder="Ex : Graissage variateur">
+          </div>
+          <div>
+            <label for="rappel-interval-input" class="form-label">Intervalle (km)</label>
+            <input type="number" id="rappel-interval-input" class="form-input" min="1" step="1" placeholder="Ex : 1500">
+          </div>
+          <div>
+            <button id="btn-rappel-add" class="btn btn-outline btn-sm" type="button">➕ Ajouter ce rappel</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- CARNET D'ENTRETIEN -->
+      <div class="card">
+        <h3>📔 Carnet d'entretien daté</h3>
+        <p class="text-sm text-muted">Notez chaque intervention : ce carnet reste utile même sans suivi kilométrique précis.</p>
+        <div class="grid-3col" style="margin-bottom: 12px; align-items: end;">
+          <div>
+            <label for="carnet-date-input" class="form-label">Date</label>
+            <input type="date" id="carnet-date-input" class="form-input">
+          </div>
+          <div>
+            <label for="carnet-km-input" class="form-label">Kilométrage (optionnel)</label>
+            <input type="number" id="carnet-km-input" class="form-input" min="0" step="1" placeholder="Ex : 12450">
+          </div>
+          <div>
+            <label for="carnet-titre-input" class="form-label">Intervention</label>
+            <input type="text" id="carnet-titre-input" class="form-input" placeholder="Ex : Changement galets 5,5g">
+          </div>
+        </div>
+        <label for="carnet-note-input" class="form-label">Notes (optionnel)</label>
+        <textarea id="carnet-note-input" class="form-input" rows="2" placeholder="Détails, pièces utilisées, ressenti..."></textarea>
+        <button id="btn-carnet-add" class="btn btn-sm" type="button" style="margin-top: 10px;">➕ Ajouter au carnet</button>
+
+        <div id="carnet-entries-list" class="carnet-entries-list" style="margin-top: 18px;"></div>
+        <p class="text-sm text-muted" id="carnet-empty-msg">Aucune intervention enregistrée pour l'instant.</p>
       </div>
     </div>
 
