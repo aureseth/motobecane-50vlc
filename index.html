@@ -79,6 +79,7 @@
           <button class="nav-btn" data-tab="tab-securite">S&#233;curit&#233; &amp; L&#233;galit&#233;</button>
           <button class="nav-btn" data-tab="tab-atelier">Checklist Atelier</button>
           <button class="nav-btn" data-tab="tab-carnet">Carnet &amp; Kilom&#233;trage</button>
+          <button class="nav-btn" data-tab="tab-glossaire">Glossaire</button>
         </div>
       </nav>
 
@@ -741,6 +742,13 @@
           <button class="btn btn-sm btn-goto-tab" data-target-tab="tab-melangeur" style="background: #16A34A; color: #FFFFFF; border: none;">
             Ouvrir le Mélangeur 2T ➔
           </button>
+        </div>
+
+        <div class="step-box-tip mt-3">
+          <strong>📐 Gain de section réel : Gurtner AR2-12 (Ø 12 mm) → Dell'Orto SHA 15/15 (Ø 15 mm)</strong>
+          <p class="text-sm" style="margin: 4px 0 0;">
+            Simple calcul géométrique (aire d'un disque, S = π × r²), vérifiable par vous-même, pas une mesure au banc : S₁₂ = π × (12/2)² ≈ 113,1 mm² ; S₁₅ = π × (15/2)² ≈ 176,7 mm². Soit un gain de section de passage d'environ <strong>+56 %</strong>. Cela explique qualitativement pourquoi le SHA 15 « respire » mieux à haut régime que le Gurtner d'origine, mais ne garantit aucun chiffre de puissance ou de couple précis pour votre AV7 — voir la section « Sources et Niveau de Confiance » de l'onglet Archives pour le détail de ce qui est confirmé ou non sur ce sujet.
+          </p>
         </div>
       </div>
     </div>
@@ -4312,6 +4320,26 @@
 
       <div class="card sleeper-card" style="margin-bottom: 16px;">
         <div class="sleeper-header">
+          <span class="step-badge" style="background: #F59E0B;">⚠️</span>
+          <h3>Nouveau rapport reçu le 13/11 — évalué, en grande partie écarté</h3>
+        </div>
+        <p class="text-sm">
+          Un « Rapport Technique & Dynamic Study » (document généré par IA, 3 pages) a été transmis pour enrichir le site. Il a été comparé point par point aux sources déjà en place avant toute intégration :
+        </p>
+        <ul class="bullet-list text-sm">
+          <li><strong>Ce qui concorde et a été jugé utile :</strong> la cylindrée (49,93 cm³, alésage 39,0 mm × course 41,8 mm) correspond exactement à ce que le site affichait déjà (fiche des Mines reconstituée). Le calcul géométrique du gain de section d'admission en passant du Gurtner Ø12mm au Dell'Orto SHA Ø15mm (+56 %) est une simple aire de disque, vérifiable indépendamment de la fiabilité du document — intégré dans l'onglet Carburation.</li>
+          <li><strong>Écarté : le couple moteur chiffré de l'AV7</strong> (0,30 kgf·m à 3000 tr/min, puis une courbe détaillée par régime). Le document affirme s'appuyer sur « le certificat d'homologation des Mines et la RTM » — or la RTM du projet a été lue intégralement (36 pages, à deux reprises) et ne contient aucune courbe ni valeur de couple pour l'AV7. Cette attribution de source ne peut donc pas être vérifiée et semble inexacte. La décision du site reste inchangée : pas de courbe de couple chiffrée (voir plus bas).</li>
+          <li><strong>Écarté : le rapport de variateur (R_var = 2,50 à 0,90)</strong> et le <strong>tableau de vitesses qui en découle</strong>. Cette plage correspond exactement à l'une des deux plages déjà écartées le 11/11 (documents IA contradictoires entre eux et avec le calcul du site basé sur « Le Vario MBK », qui donne 4,20 à 2,21) — la coïncidence exacte suggère une source commune plutôt qu'une confirmation indépendante.</li>
+          <li><strong>Écarté : la circonférence de pneu « 2.25-17 » à 1,665 m</strong> calculée depuis une formule générique de pneu moto (hauteur de flanc estimée par ratio), qui ne s'applique pas forcément à la désignation d'origine en pouces de ce cyclomoteur. Reprend la valeur d'un document IA déjà signalé comme non concordant avec le 1,76 m utilisé sur le site (écart non résolu, voir plus bas).</li>
+          <li><strong>À nuancer : la suggestion de gicleur de démarrage 62 à 64</strong> pour le SHA 15/15. Elle ne contredit pas votre réglage actuel confirmé (gicleur 68) — le site note déjà que 68 est sur la fourchette haute pour un AV7 (onglet Diagnostic) — mais ce chiffre 62-64 n'est pas davantage sourcé que les précédents : à ne considérer que comme point de départ possible si vous testez un jour un gicleur plus petit, en relisant la bougie à chaque essai, pas comme une valeur à appliquer d'office.</li>
+        </ul>
+        <div class="step-box-alert" style="margin-top: 8px;">
+          <strong>⚠️ Avant de modifier gicleur ou avance à l'allumage :</strong> un mélange trop pauvre (gicleur trop petit) ou une avance mal réglée peuvent, dans les cas extrêmes, endommager un moteur 2-temps (serrage par manque de lubrification/surchauffe). Changez un seul paramètre à la fois, par petits pas, et vérifiez la couleur de la bougie après chaque essai avant d'aller plus loin.
+        </div>
+      </div>
+
+      <div class="card sleeper-card" style="margin-bottom: 16px;">
+        <div class="sleeper-header">
           <span class="step-badge" style="background: #DC2626;">❓</span>
           <h3>Zones grises assumées — pas de source fiable trouvée</h3>
         </div>
@@ -4784,6 +4812,128 @@
         <div id="carnet-entries-list" class="carnet-entries-list" style="margin-top: 18px;"></div>
         <p class="text-sm text-muted" id="carnet-empty-msg">Aucune intervention enregistrée pour l'instant.</p>
       </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- TAB : GLOSSAIRE DES TERMES TECHNIQUES       -->
+    <!-- ========================================== -->
+    <div id="tab-glossaire" class="tab-pane">
+      <div class="section-intro">
+        <span class="sub-heading">Pour s'y retrouver</span>
+        <h2>Glossaire des termes techniques</h2>
+        <p>
+          Tous les mots techniques utilisés ailleurs sur le site, expliqués simplement. Tapez un mot dans la recherche ci-dessous pour filtrer la liste (ex. « variateur », « couple », « permis »).
+        </p>
+      </div>
+
+      <div class="card mb-3">
+        <label for="glossaire-search" class="form-label">🔍 Rechercher un terme</label>
+        <input type="search" id="glossaire-search" class="form-input" placeholder="Ex : gicleur, squish, PMH, L1e..." autocomplete="off">
+      </div>
+
+      <div id="glossaire-list" class="glossaire-list">
+        <div class="glossaire-item card">
+          <h4 class="glossaire-term">AV7</h4>
+          <p class="text-sm">Désignation du bloc moteur équipant la Motobécane 50 VLC : un monocylindre 2 temps avec admission par la jupe du piston (pas de clapet), contrairement au bloc AV10 des MBK 51.</p>
+        </div>
+        <div class="glossaire-item card">
+          <h4 class="glossaire-term">Variateur (Mobymatic)</h4>
+          <p class="text-sm">Transmission automatique à poulies : une joue mobile se rapproche ou s'éloigne sous l'effet de galets centrifuges, ce qui fait varier en continu le rapport de démultiplication selon le régime moteur. Voir l'onglet Variateur &amp; Galets.</p>
+        </div>
+        <div class="glossaire-item card">
+          <h4 class="glossaire-term">Galets</h4>
+          <p class="text-sm">Petites masses mobiles logées dans le variateur. Sous l'effet de la force centrifuge, elles poussent la joue mobile et font « s'ouvrir » le variateur à mesure que le régime moteur augmente. Leur poids (en grammes) influence le comportement : plus lourds = variateur s'ouvre plus tôt.</p>
+        </div>
+        <div class="glossaire-item card">
+          <h4 class="glossaire-term">Masselottes</h4>
+          <p class="text-sm">Même principe que les galets, mais côté embrayage centrifuge : leur poids détermine le régime auquel l'embrayage « accroche » (commence à transmettre la puissance aux roues).</p>
+        </div>
+        <div class="glossaire-item card">
+          <h4 class="glossaire-term">Embrayage centrifuge (Dimoby)</h4>
+          <p class="text-sm">Système qui engage automatiquement la transmission à partir d'un certain régime moteur, sans levier d'embrayage à actionner — contrairement à une moto classique.</p>
+        </div>
+        <div class="glossaire-item card">
+          <h4 class="glossaire-term">Pignon / Couronne</h4>
+          <p class="text-sm">Les deux roues dentées reliées par la chaîne (transmission secondaire). Le rapport entre le nombre de dents de la couronne et celui du pignon fixe la démultiplication finale : plus le pignon est petit (ou la couronne grande), plus la mobylette est « courte » (accélération) au détriment de la vitesse de pointe.</p>
+        </div>
+        <div class="glossaire-item card">
+          <h4 class="glossaire-term">Gicleur</h4>
+          <p class="text-sm">Petite pièce calibrée du carburateur, percée d'un trou précis, qui dose la quantité d'essence aspirée. Un numéro de gicleur plus élevé = passage plus large = mélange plus riche. Voir l'onglet Carburation.</p>
+        </div>
+        <div class="glossaire-item card">
+          <h4 class="glossaire-term">Carburateur (Gurtner AR2-12 / Dell'Orto SHA 15/15)</h4>
+          <p class="text-sm">Dispositif qui mélange air et essence avant leur admission dans le moteur. Le diamètre de son venturi (12 mm d'origine, 15 mm sur le Dell'Orto SHA monté par l'utilisateur) influence le débit d'air qu'il peut admettre.</p>
+        </div>
+        <div class="glossaire-item card">
+          <h4 class="glossaire-term">Rupteurs</h4>
+          <p class="text-sm">Contacts électriques mécaniques de l'allumage classique (« à vis platinées »). Une came tournant avec le moteur les ouvre et les ferme, ce qui génère l'étincelle à la bougie au bon moment. Voir le tutoriel « Rupteurs &amp; Calage ».</p>
+        </div>
+        <div class="glossaire-item card">
+          <h4 class="glossaire-term">Avance à l'allumage</h4>
+          <p class="text-sm">Moment, exprimé en millimètres avant le PMH (voir ci-dessous) ou en degrés, où l'étincelle est produite à la bougie — avant que le piston n'atteigne le haut de sa course, pour laisser le temps à la combustion de se développer.</p>
+        </div>
+        <div class="glossaire-item card">
+          <h4 class="glossaire-term">PMH (Point Mort Haut)</h4>
+          <p class="text-sm">Position où le piston est au point le plus haut possible dans le cylindre. Sert de référence pour régler l'avance à l'allumage et le calage.</p>
+        </div>
+        <div class="glossaire-item card">
+          <h4 class="glossaire-term">Diode Zener</h4>
+          <p class="text-sm">Composant électronique qui limite (« écrête ») la tension du circuit 6V d'éclairage pour éviter de griller les ampoules à haut régime, quand l'alternateur produit plus de tension. N'intervient pas sur le circuit 12V des clignotants, qui est indépendant.</p>
+        </div>
+        <div class="glossaire-item card">
+          <h4 class="glossaire-term">Squish</h4>
+          <p class="text-sm">Zone resserrée entre le piston et la culasse, au plus près du PMH, qui crée une turbulence du mélange favorisant une combustion plus complète et plus efficace. Sa cote (en mm) n'a pas de valeur d'origine confirmée pour l'AV7 — voir Archives, « Sources et Niveau de Confiance ».</p>
+        </div>
+        <div class="glossaire-item card">
+          <h4 class="glossaire-term">Balayage Schnürle</h4>
+          <p class="text-sm">Méthode de transfert des gaz dans un moteur 2 temps, utilisant des lumières de transfert profilées pour faire circuler le mélange frais sans trop se mélanger aux gaz brûlés sortants.</p>
+        </div>
+        <div class="glossaire-item card">
+          <h4 class="glossaire-term">Graisseur</h4>
+          <p class="text-sm">Point de graissage manuel, souvent un petit embout fileté, qui permet d'injecter de la graisse dans un roulement ou un axe (ex. le graisseur de vilebrequin, filetage 4×75 ou 5×80 selon l'année).</p>
+        </div>
+        <div class="glossaire-item card">
+          <h4 class="glossaire-term">Couple moteur</h4>
+          <p class="text-sm">Force de rotation produite par le moteur, exprimée en N·m (newton-mètres) ou en kgf·m. Différent de la puissance : un moteur peut avoir beaucoup de couple à bas régime sans être très puissant. Le site n'affiche volontairement aucune valeur chiffrée pour l'AV7, faute de source fiable — voir Archives.</p>
+        </div>
+        <div class="glossaire-item card">
+          <h4 class="glossaire-term">Cylindrée</h4>
+          <p class="text-sm">Volume balayé par le piston à l'intérieur du cylindre sur une course complète, exprimé en cm³ (49,93 cm³ pour l'AV7 — catégorie 50 cm³).</p>
+        </div>
+        <div class="glossaire-item card">
+          <h4 class="glossaire-term">Taux de compression</h4>
+          <p class="text-sm">Rapport entre le volume total du cylindre (piston en bas) et le volume restant au-dessus du piston quand il est au PMH. Plus il est élevé, plus le mélange est comprimé avant l'allumage.</p>
+        </div>
+        <div class="glossaire-item card">
+          <h4 class="glossaire-term">Débridage</h4>
+          <p class="text-sm">Modification visant à augmenter la vitesse ou la puissance au-delà du cadre homologué d'un cyclomoteur. Interdit sur la voie publique : amendes et conséquences sur l'assurance en cas de contrôle. Voir l'onglet Sécurité &amp; Légalité.</p>
+        </div>
+        <div class="glossaire-item card">
+          <h4 class="glossaire-term">L1e</h4>
+          <p class="text-sm">Catégorie européenne des cyclomoteurs : cylindrée ≤ 50 cm³, puissance ≤ 4 kW, vitesse limitée à 45 km/h par construction. C'est la catégorie de la 50 VLC.</p>
+        </div>
+        <div class="glossaire-item card">
+          <h4 class="glossaire-term">Permis AM (ex-BSR)</h4>
+          <p class="text-sm">Titre de conduite obligatoire pour circuler en cyclomoteur, pour toute personne née à partir du 1ᵉʳ janvier 1988. Voir l'onglet Sécurité &amp; Légalité.</p>
+        </div>
+        <div class="glossaire-item card">
+          <h4 class="glossaire-term">Contrôle technique 2 roues</h4>
+          <p class="text-sm">Vérification périodique obligatoire, étendue aux cyclomoteurs &lt; 50 cm³ à partir du 1ᵉʳ mars 2026 (vitesse réelle mesurée au céléromètre, niveau sonore déjà contrôlé depuis avril 2024).</p>
+        </div>
+        <div class="glossaire-item card">
+          <h4 class="glossaire-term">Mélange 2 temps</h4>
+          <p class="text-sm">Carburant obtenu en mélangeant essence et huile moteur dans des proportions précises, car un moteur 2 temps comme l'AV7 n'a pas de carter d'huile séparé : le graissage interne se fait par l'huile présente dans le mélange. Voir l'onglet Mélangeur 2T.</p>
+        </div>
+        <div class="glossaire-item card">
+          <h4 class="glossaire-term">m.kg / N·m</h4>
+          <p class="text-sm">Deux unités de couple (de serrage ou moteur). 1 m.kg (mètre-kilogramme, aussi noté kgf·m) ≈ 9,80665 N·m. Le site affiche les deux à chaque fois qu'une valeur de couple est confirmée.</p>
+        </div>
+        <div class="glossaire-item card">
+          <h4 class="glossaire-term">tr/min (régime moteur)</h4>
+          <p class="text-sm">Nombre de tours par minute effectués par le vilebrequin. Sert de repère pour tous les réglages (allumage, carburation, variateur) et pour situer les zones de fonctionnement du moteur (accroche, rendement max, allonge).</p>
+        </div>
+      </div>
+      <p class="text-sm text-muted" id="glossaire-empty-msg" style="display: none;">Aucun terme ne correspond à votre recherche.</p>
     </div>
 
   </main>
