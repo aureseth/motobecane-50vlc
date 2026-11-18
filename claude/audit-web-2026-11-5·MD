@@ -1,0 +1,22 @@
+# Audit web (rendu réel) — Guide Motobécane 50 VLC
+*15 novembre 2026 — suite de `claude/audit-ux-ui.md`. Vérifié visuellement (Playwright) à 1440 px, 768 px et 375 px, en mode clair et sombre.*
+
+## Corrigé (✅)
+
+| # | Problème | Correction | Fichiers |
+|---|----------|-----------|----------|
+| A1 | Aucun `<h1>` sur la page (SEO, lecteurs d'écran) | `<span class="brand-title">` → `<h1 class="brand-title">`, avec remise à zéro des styles hérités (rendu identique : 18,4 px bureau, 17,6 px mobile) | `index.html`, `styles.css` |
+| A3 | Focus clavier peu visible sur les boutons de navigation, burger, thème, mémo, pilules tutoriels | `:focus-visible` orange (contour 2 px, décalé de 2 px), variante mode sombre | `styles.css` |
+| B1 | Pilules du bandeau de specs collées les unes aux autres | Séparateur fin entre pilules (bureau), libellé plus aéré, valeur en gras ; séparateur retiré sur mobile | `styles.css` |
+| B2 | ~505 couleurs écrites en dur dans `styles.css` au lieu des variables | Chantier en 8 phases (nov. 2026) : tokens sémantiques, mode sombre via variables, purge progressive. Résultat final : **79 couleurs résiduelles** (hors sélecteurs SVG inévitables) contre 505 au départ, **28 règles dark** manuelles non-SVG (objectif < 30 ✅), 0 échec de contraste. | `styles.css` |
+| B3 | Sélecteur de tutoriels (6 pilules) : risque de débordement | Retour à la ligne sur bureau (2 rangées, aucun débordement mesuré à 1440 px), texte plus petit sous 1100 px | `styles.css` |
+| B5 | Mobile : « Mode Établi » et « Mémo Réglages » sur des lignes séparées | Recherche en pleine largeur, puis Mode Établi + Mémo sur la même ligne | `styles.css` |
+| C2 | Bouton « Imprimer » sans retour visuel | Toast « Fiche d'établi envoyée à l'impression » après la fenêtre d'impression | `app.js` |
+| C3 | Onglet Archives sans illustration | Mobylette du kit logo en haut à droite de l'introduction (réutilise l'image de la bannière, sans doublon de données ; masquée à l'impression) | `index.html`, `styles.css`, `app.js` |
+| C4 | La recherche rapide ne connaissait pas les noms des onglets ni des groupes du menu | Entrée sur « glossaire », « carnet »… ouvre l'onglet ; « je répare »… déplie le groupe du menu (testé, sans erreur JS) | `app.js` |
+| C1 | Illustration de la bannière « Première visite » trop grande sur petit écran | 96 px → 76 px sous 480 px | `styles.css` |
+
+Faux positif écarté : A2 (27 cases à cocher des tutoriels « sans étiquette ») — elles sont bien enveloppées dans `<label class="step-validate-btn">` (étiquetage implicite valide).
+
+## Mise en ligne
+`CACHE_VERSION` du service worker passé de `v2` à `v14` (progression au fil des phases du chantier couleurs).

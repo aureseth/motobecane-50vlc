@@ -13,7 +13,7 @@
  * styles.css pour forcer la mise à jour du cache chez les utilisateurs.
  */
 
-const CACHE_VERSION = 'v1';
+const CACHE_VERSION = 'v13';
 const CACHE_NAME = `mob50vlc-shell-${CACHE_VERSION}`;
 
 const SHELL_FILES = [

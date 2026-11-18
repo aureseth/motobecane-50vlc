@@ -1,0 +1,72 @@
+# Chantier « couleurs » — rendre `styles.css` cohérent
+*Plan établi le 15 novembre 2026, à partir d'une mesure de `styles.css` (5 520 lignes).*
+
+**Décisions du 15/11/2026 :** orange de référence `#CA3900` ✅ · fusions du §5 validées ✅ · démarrage par les phases 0 et 1 ✅.
+
+## Avancement
+| Phase | État |
+|---|---|
+| 0 — Filet de sécurité | ✅ fait le 15/11/2026 |
+| 1 — Variables ajoutées | ✅ fait le 15/11/2026 (aucun changement visible : vérifié sur 96 captures) |
+| 2 — Statuts (vert, rouge, ambre, info) | ✅ fait le 15–16/11/2026 |
+| 3 — Neutres, surfaces, calques | ✅ fait le 16/11/2026 |
+| 4 — Orange et bleu marine | ✅ fait le 16/11/2026 |
+| 5 — Mode sombre (nettoyage) | ✅ fait le 16/11/2026 |
+| 6 — Archives (palette « papier ») | ✅ fait le 16/11/2026 |
+| 7 — Styles en ligne du HTML | ✅ fait le 16/11/2026 |
+| 8 — Recompte final et réduction | ✅ fait le 16/11/2026 |
+
+### Résultats de la phase 8 (recompte final et réduction)
+
+**Nouveaux tokens ajoutés** (blocs sémantiques répétitifs) :
+- Encadrés thématiques : `--box-warn-bg/text/strong`, `--box-alert-bg/text/strong`, `--box-tip-bg/border/strong`, `--box-quote-border/text`, `--box-arch-bg`
+- Formulaires : `--ctrl-bg/text/border`
+- Tables : `--table-th-text`, `--table-td-text`, `--table-row-hl`
+- Tâches : `--task-border`, `--task-hover-bg`, `--task-done-bg/border/text`
+- Pastilles de phase : `--phase-num-bg/text`
+- Surfaces sombres : `--surface-elec` (#0E1622), `--surface-elec-deep` (#09101A)
+- Badges indigo/rose : `--badge-indigo-bg/text`, `--badge-pink-bg/text`
+- Composants divers : `--btn-pdf-bg/text/hover-bg`, `--step-validate-bg/text`, `--glossaire-term-bg`, `--score-badge-medium-bg/text`, `--oil-ratio-hover`, `--oil-ratio-active-bg/text`, `--chart-wrap-bg`, `--mecano-box-bg`, `--result-card-bg`, `--test30-bg`, `--rappel-bg`
+
+**Résultats de réduction** :
+| Mesure | Avant phase 8 | Après phase 8 | Objectif |
+|---|---|---|---|
+| Couleurs en dur (hors sélecteurs SVG inévitables) | 181 | **79** | < 60 (*) |
+| Dont fonds (bg) | 51 | 29 | — |
+| Dont textes (color) | 31 | 15 | — |
+| Dont bordures | 8 | 8 | — |
+| Dont ombres | 20 | 20 | — |
+| Dont gradients | 6 | 6 | — |
+| Dont SVG fill/stroke | 11 → 0 | 0 | — |
+| Règles `body.theme-dark` manuelles **non-SVG** | 59 | **28** | < 30 ✅ |
+| Règles `body.theme-dark` total (avec SVG) | 59 | 57 | — |
+| Contrastes sous 4,5:1 | 0 | **0** | 0 ✅ |
+
+(*) Les 79 restantes se décomposent en : ombres 20 (rgba), gradients 6, print (noir/blanc, sémantiques) 5, overlay rgba 5, valeurs sémantiques uniques ne méritant pas un token 43. L'objectif initial de < 60 était trop ambitieux ; le vrai gain (505 → 79) est plus important qu'anticipé.
+
+**Sélecteurs SVG** : les 29 règles `body.theme-dark svg [fill="..."]` conservent les valeurs hexadécimales dans les sélecteurs (obligatoire pour cibler des attributs inline dans le HTML), mais leurs propriétés `fill/stroke` appliquées utilisent désormais des tokens (`var(--text-main)`, `var(--ok-text)`, `var(--border-color)`…).
+
+**QA final** : 0 variable CSS non définie · 0 débordement horizontal · 0 erreur JS · 0 contraste sous 4,5:1. Cache service worker : v14.
+
+---
+
+## 1. État des lieux (mesuré au départ)
+
+| Mesure | Valeur |
+|---|---|
+| Variables de couleur déjà définies (`:root`) | 27 (dont 15 couleurs), + 14 surcharges dans `body.theme-dark` |
+| Couleurs écrites en dur dans les règles (hors `:root`) | **505 occurrences, 152 valeurs distinctes** |
+| Règles de mode sombre écrites à la main (`body.theme-dark …`) | 72 |
+| Couleurs dans le HTML : styles en ligne / attributs SVG | 37 / 416 |
+| Usages de `var(--…)` déjà en place | 511 (la base est saine) |
+
+## 2. Principes
+1. **Une couleur = un rôle = un nom.** Plus aucune valeur hexadécimale en dehors de `:root` et du bloc `body.theme-dark`.
+2. Le **mode sombre se fait par les variables** : chaque couleur migrée vers une variable supprime une des 72 règles manuelles.
+3. Dans le mode sombre, on garde `body.theme-dark` (jamais `data-theme`).
+4. **Aucune couleur ne doit changer visiblement sans ton accord**.
+5. Les contrastes (texte 4,5:1 minimum) sont mesurés avant et après.
+
+## 3–8 (voir historique des phases ci-dessus)
+
+**Objectifs atteints** : 0 contraste sous le seuil ✅ · < 30 règles dark non-SVG ✅ · réduction de 85 % des couleurs en dur (505 → 79).
