@@ -22,6 +22,30 @@ document.addEventListener('DOMContentLoaded', () => {
   let transmissionProfileLabel = '11x54';
 
   /* -----------------------------------------------------------------
+   * CONSTANTES CINÉMATIQUES RTM — Motobécane 50V (Pantin)
+   * Source : Revue Technique Motocycliste d'époque
+   * Déclarées ici une seule fois pour éviter toute dérive silencieuse
+   * entre updateSpeedSimulation() et drawSpeedTorqueChart().
+   * ----------------------------------------------------------------- */
+  const PULLEY_DIAM_MM = 207.5;  // diamètre effectif d'enroulement, poulie motrice
+  const VARIO_MIN_MM   = 49.5;   // diamètre primitif variateur gorge fermée (vario 0%)
+  const VARIO_MAX_MM   = 87.5;   // diamètre primitif variateur joues sorties (vario 100%)
+
+  /**
+   * Calcule la vitesse sol (km/h) pour un régime, une position de variateur,
+   * un rapport secondaire et une circonférence de pneu donnés.
+   * Fonction partagée entre updateSpeedSimulation() et drawSpeedTorqueChart()
+   * pour garantir l'unicité de la cinématique (source RTM).
+   */
+  function speedAtVarioPct(rpm, varioPct, transRatioArg, tireCircArg) {
+    const dVario = VARIO_MIN_MM + (varioPct / 100) * (VARIO_MAX_MM - VARIO_MIN_MM);
+    const primaryRatio = PULLEY_DIAM_MM / dVario;
+    const totalRatio = primaryRatio * transRatioArg;
+    const wheelRpm = rpm / totalRatio;
+    return (wheelRpm * tireCircArg * 60) / 1000;
+  }
+
+  /* -----------------------------------------------------------------
    * 1. GESTION DES ONGLETS (NAVIGATION)
    * ----------------------------------------------------------------- */
   const navButtons = document.querySelectorAll('.nav-btn');
@@ -389,14 +413,24 @@ document.addEventListener('DOMContentLoaded', () => {
     btnPrint.addEventListener('click', () => {
       document.body.classList.remove('print-mode-memo');
       window.print();
+      showToast('Fiche d\'établi envoyée à l\'impression.');
     });
   }
+
+  // Illustration de l'onglet Archives : réutilise l'image de la bannière
+  // « Première visite » pour ne pas dupliquer ~20 Ko de données base64.
+  (function () {
+    const art = document.querySelector('.archives-art');
+    const src = document.querySelector('.beginner-banner-art');
+    if (art && src && src.getAttribute('src')) art.src = src.getAttribute('src');
+  })();
+
   window.addEventListener('afterprint', () => {
     document.body.classList.remove('print-mode-memo');
   });
 
   /* -----------------------------------------------------------------
-   * 8. MODE ÉTABLI (THÈME SOMBRE HAUTE VISIBILITÉ)
+   * 7. MODE ÉTABLI (THÈME SOMBRE HAUTE VISIBILITÉ)
    * ----------------------------------------------------------------- */
   const btnThemeToggle = document.getElementById('btn-theme-toggle');
   const themeIcon = document.getElementById('theme-icon');
@@ -437,7 +471,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   /* -----------------------------------------------------------------
-   * 9. RECHERCHE RAPIDE INSTANTANÉE DANS LE MANUEL
+   * 8. RECHERCHE RAPIDE INSTANTANÉE DANS LE MANUEL
    * ----------------------------------------------------------------- */
   const quickSearchInput = document.getElementById('quick-search');
   const quickSearchFeedback = document.getElementById('quick-search-feedback');
@@ -496,13 +530,40 @@ document.addEventListener('DOMContentLoaded', () => {
           }
         }
 
+        // Noms des onglets et des groupes du menu (ex. « carnet », « glossaire »,
+        // « je répare ») : on ouvre l'onglet, ou on déplie le groupe correspondant.
+        if (query.length >= 3) {
+          const navLabel = (el) => normalizeSearch(el.textContent.replace(/[▾▼]/g, '').trim());
+          const tabBtn = Array.from(document.querySelectorAll('.nav-btn[data-tab]'))
+            .find(btn => navLabel(btn).includes(query));
+          if (tabBtn) {
+            tabBtn.click();
+            quickSearchInput.blur();
+            return;
+          }
+          const groupBtn = Array.from(document.querySelectorAll('.nav-group-toggle'))
+            .find(btn => navLabel(btn).includes(query));
+          if (groupBtn) {
+            quickSearchInput.blur();
+            if (groupBtn.getAttribute('aria-expanded') !== 'true') groupBtn.click();
+            showSearchFeedback('Groupe « ' + groupBtn.textContent.replace(/[▾▼]/g, '').trim() + ' » ouvert dans le menu.');
+            return;
+          }
+        }
+
         // Generic text search in active page (accents ignorés)
         const contentArea = document.querySelector('.main-content');
         if (contentArea) {
           const walker = document.createTreeWalker(contentArea, NodeFilter.SHOW_TEXT);
           let node;
           while ((node = walker.nextNode())) {
-            if (normalizeSearch(node.nodeValue).includes(query) && node.parentElement.offsetParent !== null) {
+            const hitEl = node.parentElement;
+            // Un résultat dans une section repliée (<details>) de l'onglet affiché compte aussi : on la déplie.
+            const closedParent = hitEl.closest('details:not([open])');
+            const inActiveTab = !!hitEl.closest('.tab-pane.active');
+            if (normalizeSearch(node.nodeValue).includes(query) && (hitEl.offsetParent !== null || (closedParent && inActiveTab))) {
+              let det = hitEl.closest('details');
+              while (det) { det.open = true; det = det.parentElement ? det.parentElement.closest('details') : null; }
               node.parentElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
               node.parentElement.style.outline = '3px solid #E65100';
               setTimeout(() => { node.parentElement.style.outline = ''; }, 2500);
@@ -519,7 +580,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   /* -----------------------------------------------------------------
-   * 10. SIMULATEUR DYNAMIQUE DE VITESSE & DÉMULTIPLICATION PANTIN
+   * 9. SIMULATEUR DYNAMIQUE DE VITESSE & DÉMULTIPLICATION PANTIN
    * ----------------------------------------------------------------- */
   const simRpm = document.getElementById('sim-rpm');
   const simRpmVal = document.getElementById('sim-rpm-val');
@@ -527,6 +588,17 @@ document.addEventListener('DOMContentLoaded', () => {
   const simVarioVal = document.getElementById('sim-vario-val');
   const simTrans = document.getElementById('sim-trans');
   const simTire = document.getElementById('sim-tire');
+
+  // Mode auto variateur (modèle centrifuge billes Mobymatic)
+  const simAutoMode       = document.getElementById('sim-auto-mode');
+  const simGaletMass      = document.getElementById('sim-galet-mass');
+  const simGaletMassVal   = document.getElementById('sim-galet-mass-val');
+  const simVarioManualRow = document.getElementById('sim-vario-manual-row');
+  const simGaletMassRow   = document.getElementById('sim-galet-mass-row');
+  const simAutoPredictions = document.getElementById('sim-auto-predictions');
+  const predRpmOpen       = document.getElementById('pred-rpm-open');
+  const predRpmFull       = document.getElementById('pred-rpm-full');
+  const predVarioPct      = document.getElementById('pred-vario-pct');
 
   const simSpeedGps = document.getElementById('sim-speed-gps');
   const simSpeedHuret = document.getElementById('sim-speed-huret');
@@ -547,24 +619,35 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!simRpm || !simVario || !simTrans || !simTire) return;
 
     const rpm = parseInt(simRpm.value, 10);
-    const varioPercent = parseInt(simVario.value, 10);
+    let varioPercent = parseInt(simVario.value, 10);
     const transRatio = parseFloat(simTrans.value);
     const tireCirc = parseFloat(simTire.value);
 
     simRpmVal.textContent = `${rpm.toLocaleString('fr-FR')} tr/min`;
-    simVarioVal.textContent = `${varioPercent}% ${varioPercent === 100 ? '(Plein sommet)' : varioPercent === 0 ? '(Gorge fermée)' : '(En montée)'}`;
+
+    // MODE AUTO variateur : modèle centrifuge billes Mobymatic
+    if (simAutoMode && simAutoMode.checked && simGaletMass) {
+      const galetMassG = parseFloat(simGaletMass.value) || 5.5;
+      const autoResult = varioPercentFromRPM(rpm, galetMassG);
+      varioPercent = autoResult.pct;
+      if (simVario) simVario.value = varioPercent;  // refléter dans le slider (lecture seule en mode auto)
+      simVarioVal.textContent = `${varioPercent}% (Modèle centrifuge)`;
+      if (predRpmOpen) predRpmOpen.textContent = `${autoResult.rpmOpen.toLocaleString('fr-FR')} tr/min`;
+      if (predRpmFull) predRpmFull.textContent = `${autoResult.rpmFull.toLocaleString('fr-FR')} tr/min`;
+      if (predVarioPct) predVarioPct.textContent = `${varioPercent} %`;
+    } else {
+      simVarioVal.textContent = `${varioPercent}% ${varioPercent === 100 ? '(Plein sommet)' : varioPercent === 0 ? '(Gorge fermée)' : '(En montée)'}`;
+    }
 
     // Cinématique réelle d'époque Motobécane 50V (Pantin) :
     // 1. Transmission primaire par courroie trapézoïdale :
-    //    - Poulie motrice / plateau récepteur : Diamètre effectif d'enroulement = 210 mm
+    //    - Poulie motrice / plateau récepteur : Diamètre effectif d'enroulement = 207,5 mm (RTM)
     //    - Variateur Mobymatic :
-    //      * 0% (courroie en fond de gorge) : diamètre primitif = 50 mm -> Ratio primaire = 210 / 50 = 4,20
-    //      * 100% (courroie à fleur des joues) : diamètre primitif = 95 mm -> Ratio primaire = 210 / 95 = 2,21
-    const dPulley = 210.0;
-    const dVarioMin = 50.0;
-    const dVarioMax = 95.0;
-    const dVario = dVarioMin + (varioPercent / 100) * (dVarioMax - dVarioMin);
-    const primaryRatio = dPulley / dVario;
+    //      * 0% (courroie en fond de gorge) : diamètre primitif = 49,5 mm -> Ratio primaire = 207,5 / 49,5 = 4,19
+    //      * 100% (courroie à fleur des joues) : diamètre primitif = 87,5 mm -> Ratio primaire = 207,5 / 87,5 = 2,37
+    // (Constantes RTM PULLEY_DIAM_MM / VARIO_MIN_MM / VARIO_MAX_MM déclarées au niveau du scope)
+    const dVario = VARIO_MIN_MM + (varioPercent / 100) * (VARIO_MAX_MM - VARIO_MIN_MM);
+    const primaryRatio = PULLEY_DIAM_MM / dVario;
 
     // 2. Rapport global de démultiplication (Moteur vers Roue arrière) :
     //    Rapport total = Rapport primaire (courroie) × Rapport secondaire (chaîne)
@@ -607,17 +690,14 @@ document.addEventListener('DOMContentLoaded', () => {
     if (telemetryRatioTot) telemetryRatioTot.textContent = `${totalRatio.toFixed(2)} : 1`;
     if (telemetryRpmWheel) telemetryRpmWheel.textContent = `${Math.round(wheelRpm)} tr/min`;
 
-    // Comparatif du développé à pleine variation (100% vario = dVarioMax 95 mm) au même régime
-    const speedAtPeak = (trans) => {
-      const primaryAtPeak = dPulley / dVarioMax; // ~2.2105
-      const totRatioPeak = primaryAtPeak * trans;
-      const wPeak = rpm / totRatioPeak;
-      return (wPeak * tireCirc * 60) / 1000;
-    };
+    // Comparatif du développé à pleine variation (100% vario = dVarioMax 87,5 mm) au même régime
+    // CORRECTIF : utilise transRatio (live du sélecteur) au lieu d'un ratio hardcodé
+    // vario 100% = VARIO_MAX_MM → vitesse de pointe (courroie à fleur des joues)
+    const speedAtPeak = (trans) => speedAtVarioPct(rpm, 100, trans, tireCirc);
 
-    const speedCurrent = speedAtPeak(4.909);
-    const speedOrigin = speedAtPeak(4.500);
-    const speedMountain = speedAtPeak(5.091);
+    const speedCurrent = speedAtPeak(transRatio);   // ← votre transmission (live depuis le sélecteur)
+    const speedOrigin = speedAtPeak(4.500);          // 11x49,5 (origine Pantin)
+    const speedMountain = speedAtPeak(5.091);        // 11x56 (montagne)
 
     if (barValCurrent) barValCurrent.textContent = `${speedCurrent.toFixed(1)} km/h`;
     if (barValOrigin) barValOrigin.textContent = `${speedOrigin.toFixed(1)} km/h`;
@@ -635,15 +715,12 @@ document.addEventListener('DOMContentLoaded', () => {
    * 10b. GRAPHIQUE DYNAMIQUE VITESSE / RÉGIME + FORME DE COUPLE INDICATIVE
    * -----------------------------------------------------------------
    * La courbe de VITESSE réutilise exactement la même cinématique que
-   * updateSpeedSimulation() ci-dessus (poulies 210/50-95mm, source
-   * Le Vario MBK) — c'est du calcul, pas une estimation.
-   * La courbe de COUPLE est volontairement SANS UNITÉ : aucune source de ce
-   * projet (RTM, fiche Mines illustrative, documents IA transmis par
-   * l'utilisateur) ne donne de valeurs de couple cohérentes entre elles
-   * pour l'AV7 — voir onglet Archives & Mines → Sources et Niveau de
-   * Confiance. On affiche donc juste une FORME indicative (où le moteur
-   * pousse le plus), calée sur les régimes repères déjà utilisés ailleurs
-   * sur le site (accroche ~4500, couple max ~5800, allonge ~6500 tr/min).
+   * updateSpeedSimulation() ci-dessus (poulies 207,5/49,5-87,5 mm, source RTM)
+   * — c'est du calcul, pas une estimation.
+   * La courbe de COUPLE est volontairement SANS UNITÉ : seule la FORME est
+   * indicative (où le moteur pousse le plus). Les régimes repères sont issus
+   * de sources primaires : couple max ~3 000 tr/min (RTM + Fiche des Mines),
+   * puissance max ~4 700 tr/min (Fiche des Mines).
    * ----------------------------------------------------------------- */
   const speedTorqueCanvas = document.getElementById('speed-torque-canvas');
   const speedTorqueCtx = speedTorqueCanvas ? speedTorqueCanvas.getContext('2d') : null;
@@ -672,33 +749,25 @@ document.addEventListener('DOMContentLoaded', () => {
     const colCurrent = '#D9480F';
     const colTorque = isDark ? '#94A3B8' : '#64748B';
 
-    // --- Cinématique (identique à updateSpeedSimulation) ---
-    const dPulley = 210.0;
-    const dVarioMin = 50.0;
-    const dVarioMax = 95.0;
+    // --- Cinématique (constantes RTM partagées : PULLEY_DIAM_MM / VARIO_MIN_MM / VARIO_MAX_MM) ---
     const transRatio = parseFloat(simTrans.value) || transmissionProfileRatio;
     const tireCirc = parseFloat(simTire.value) || 1.76;
     const currentVarioPct = parseInt(simVario.value, 10);
     const currentRpm = parseInt(simRpm.value, 10);
 
-    function speedAt(rpm, varioPct) {
-      const dVario = dVarioMin + (varioPct / 100) * (dVarioMax - dVarioMin);
-      const primaryRatio = dPulley / dVario;
-      const totalRatio = primaryRatio * transRatio;
-      const wheelRpm = rpm / totalRatio;
-      return (wheelRpm * tireCirc * 60) / 1000;
-    }
+    // Alias local vers speedAtVarioPct() avec les paramètres transRatio/tireCirc de cet appel
+    const speedAt = (rpm, varioPct) => speedAtVarioPct(rpm, varioPct, transRatio, tireCirc);
 
-    // Forme de couple qualitative : cloche asymétrique, pic ~5500 tr/min,
-    // chute plus rapide après le pic (cohérent avec la "chute brusque"
-    // mentionnée par les sources au-delà de 6000 tr/min). Sans unité.
+    // Forme de couple qualitative : cloche asymétrique, pic ~3 000 tr/min
+    // (RTM + Fiche des Mines AV7), montée progressive dès 2 000 tr/min,
+    // descente douce jusqu'à 6 000 tr/min (moteur 2T à distribution) — Sans unité.
     function torqueShapeAt(rpm) {
-      const peak = 5500;
-      const sigma = rpm < peak ? 1200 : 700;
+      const peak = 3000;
+      const sigma = rpm < peak ? 800 : 1500;
       return Math.exp(-((rpm - peak) ** 2) / (2 * sigma * sigma)) * 100;
     }
 
-    const rpmMin = 3500;
+    const rpmMin = 2000;
     const rpmMax = 7500;
     const step = 50;
     const points = [];
@@ -707,7 +776,9 @@ document.addEventListener('DOMContentLoaded', () => {
         rpm,
         sClosed: speedAt(rpm, 0),
         sOpen: speedAt(rpm, 100),
-        sCurrent: speedAt(rpm, currentVarioPct),
+        sCurrent: (simAutoMode && simAutoMode.checked && simGaletMass)
+          ? speedAt(rpm, varioPercentFromRPM(rpm, parseFloat(simGaletMass.value) || 5.5).pct)
+          : speedAt(rpm, currentVarioPct),
         torque: torqueShapeAt(rpm)
       });
     }
@@ -753,8 +824,8 @@ document.addEventListener('DOMContentLoaded', () => {
       ctx.fillText(`${Math.round(rpm / 100) / 10}k`, x, cssHeight - padBottom + 6);
     }
 
-    // Repères verticaux déjà utilisés ailleurs sur le site (accroche / couple max / allonge)
-    [4500, 5800, 6500].forEach((rpm) => {
+    // Repères verticaux : couple max ~3 000 tr/min (RTM), puissance max ~4 700 tr/min (Fiche des Mines)
+    [3000, 4700, 6000].forEach((rpm) => {
       const x = xForRpm(rpm);
       ctx.strokeStyle = isDark ? 'rgba(255,255,255,0.18)' : 'rgba(15,23,42,0.15)';
       ctx.setLineDash([2, 3]);
@@ -859,11 +930,58 @@ document.addEventListener('DOMContentLoaded', () => {
     ctx.fillText('Régime moteur (tr/min)', padLeft + plotW / 2, cssHeight - 4);
   }
 
+  /* -----------------------------------------------------------------
+   * MODÈLE PHYSIQUE : Variateur à billes Mobymatic → Vario%
+   * Source confirmée : "Le Variateur Embrayage MBK" (revue technique 1990s)
+   * Architecture : 3 ou 4 billes sphériques sur rampes inclinées,
+   * sans ressort de rappel de joue mobile (retour = seule tension courroie).
+   * Loi centrifuge : F ∝ m × ω²  →  RPM_équilibre ∝ 1/√m
+   * Calibration RTM : couple max à ~3 000 tr/min avec galets 5g standard
+   * ----------------------------------------------------------------- */
+  function varioPercentFromRPM(rpm, galetMassG) {
+    const REF_MASS     = 5.0;   // g : galets d'origine AV7
+    const RPM_OPEN_REF = 2500;  // tr/min : début déplacement courroie (zone couple max RTM)
+    const RPM_FULL_REF = 5000;  // tr/min : courroie en haut des joues (plein régime)
+    // Scaling masse → régime d'équilibre (loi centrifuge)
+    const massRatio = Math.sqrt(REF_MASS / galetMassG);
+    const rpmOpen   = Math.round(RPM_OPEN_REF * massRatio);
+    const rpmFull   = Math.round(RPM_FULL_REF * massRatio);
+    if (rpm <= rpmOpen) return { pct: 0,   rpmOpen, rpmFull };
+    if (rpm >= rpmFull) return { pct: 100, rpmOpen, rpmFull };
+    // Progression quadratique entre ouverture et pleine ouverture (∝ n²)
+    const ratio = (rpm * rpm - rpmOpen * rpmOpen) / (rpmFull * rpmFull - rpmOpen * rpmOpen);
+    return { pct: Math.round(ratio * 100), rpmOpen, rpmFull };
+  }
+
   if (simRpm) {
     simRpm.addEventListener('input', updateSpeedSimulation);
-    simVario.addEventListener('input', updateSpeedSimulation);
+    simVario.addEventListener('input', () => {
+      // En mode manuel uniquement (en mode auto le slider est piloté par le modèle)
+      if (!simAutoMode || !simAutoMode.checked) updateSpeedSimulation();
+    });
     simTrans.addEventListener('change', updateSpeedSimulation);
     simTire.addEventListener('change', updateSpeedSimulation);
+
+    // Basculement mode Auto / Manuel
+    if (simAutoMode) {
+      simAutoMode.addEventListener('change', () => {
+        const isAuto = simAutoMode.checked;
+        if (simVarioManualRow)   simVarioManualRow.style.display   = isAuto ? 'none' : '';
+        if (simGaletMassRow)     simGaletMassRow.style.display     = isAuto ? ''     : 'none';
+        if (simAutoPredictions)  simAutoPredictions.style.display  = isAuto ? ''     : 'none';
+        updateSpeedSimulation();
+      });
+    }
+
+    // Curseur poids galets (visible uniquement en mode auto)
+    if (simGaletMass) {
+      simGaletMass.addEventListener('input', () => {
+        const g = parseFloat(simGaletMass.value).toFixed(1).replace('.', ',');
+        if (simGaletMassVal) simGaletMassVal.textContent = `${g} g`;
+        if (simAutoMode && simAutoMode.checked) updateSpeedSimulation();
+      });
+    }
+
     updateSpeedSimulation();
   }
 
@@ -881,7 +999,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   /* -----------------------------------------------------------------
-   * 11. COMMUTATEUR BIFACE ÉLECTRIQUE (NOVI 6V/12V VS MORYAMA 12V)
+   * 10. COMMUTATEUR BIFACE ÉLECTRIQUE (NOVI 6V/12V VS MORYAMA 12V)
    * ----------------------------------------------------------------- */
   const bifaceButtons = document.querySelectorAll('.biface-btn');
   const electricPanels = document.querySelectorAll('.electric-panel');
@@ -903,7 +1021,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   /* -----------------------------------------------------------------
-   * 12. ARBRE DE DIAGNOSTIC & FILTRE DES PANNES
+   * 11. ARBRE DE DIAGNOSTIC & FILTRE DES PANNES
    * ----------------------------------------------------------------- */
   const diagFilterButtons = document.querySelectorAll('.diag-filter-btn');
   const diagCards = document.querySelectorAll('.diag-symptom-card');
@@ -927,7 +1045,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   /* -----------------------------------------------------------------
-   * 13. MODAL DU MÉMO DE RÉGLAGES PERSONNALISÉS
+   * 12. MODAL DU MÉMO DE RÉGLAGES PERSONNALISÉS
    * ----------------------------------------------------------------- */
   const btnMemo = document.getElementById('btn-memo');
   const memoModal = document.getElementById('memo-modal');
@@ -935,12 +1053,85 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnCopyMemo = document.getElementById('btn-copy-memo');
   const btnPrintMemo = document.getElementById('btn-print-memo');
 
+  /* ---- Utilitaire focus-trap ----------------------------------------- */
+  /**
+   * Ouvre une modale ARIA dialog :
+   *   - ajoute la classe 'active'
+   *   - mémorise l'élément qui avait le focus avant l'ouverture
+   *   - déplace le focus sur le premier élément focalisable de la carte
+   *   - installe un gestionnaire de touche Tab pour piéger le focus à l'intérieur
+   * Retourne une fonction de nettoyage à appeler à la fermeture.
+   */
+  function openModalWithFocusTrap(backdropEl) {
+    if (!backdropEl) return () => {};
+    backdropEl.classList.add('active');
+
+    // Mémoriser le déclencheur pour restaurer le focus à la fermeture
+    const previousFocus = document.activeElement;
+
+    // Sélecteur des éléments focalisables standard
+    const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+    const card = backdropEl.querySelector('.memo-modal-card');
+
+    // Déplacer le focus sur le premier élément de la carte
+    if (card) {
+      const first = card.querySelector(FOCUSABLE);
+      if (first) first.focus();
+    }
+
+    // Gestionnaire Tab pour piéger le focus
+    function trapTab(e) {
+      if (e.key !== 'Tab') return;
+      if (!backdropEl.classList.contains('active')) return;
+
+      const focusables = card ? Array.from(card.querySelectorAll(FOCUSABLE)).filter((el) => !el.closest('[hidden]')) : [];
+      if (focusables.length === 0) return;
+
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+
+      if (e.shiftKey) {
+        if (document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        }
+      } else {
+        if (document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    }
+
+    document.addEventListener('keydown', trapTab);
+
+    // Retourner la fonction de nettoyage
+    return function cleanup() {
+      document.removeEventListener('keydown', trapTab);
+      backdropEl.classList.remove('active');
+      // Restaurer le focus sur le déclencheur
+      if (previousFocus && typeof previousFocus.focus === 'function') {
+        previousFocus.focus();
+      }
+    };
+  }
+  /* -------------------------------------------------------------------- */
+
+  let _closeMemoCleanup = null;
+
   function openMemo() {
-    if (memoModal) memoModal.classList.add('active');
+    if (memoModal) {
+      _closeMemoCleanup = openModalWithFocusTrap(memoModal);
+    }
   }
 
   function closeMemo() {
-    if (memoModal) memoModal.classList.remove('active');
+    if (_closeMemoCleanup) {
+      _closeMemoCleanup();
+      _closeMemoCleanup = null;
+    } else if (memoModal) {
+      memoModal.classList.remove('active');
+    }
   }
 
   if (btnMemo) btnMemo.addEventListener('click', openMemo);
@@ -1136,13 +1327,22 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentProfile = loadProfile();
   applyProfile(currentProfile);
 
+  let _closeProfileCleanup = null;
+
   function openProfileModal() {
     fillProfileForm(currentProfile);
-    if (profileModal) profileModal.classList.add('active');
+    if (profileModal) {
+      _closeProfileCleanup = openModalWithFocusTrap(profileModal);
+    }
   }
 
   function closeProfileModal() {
-    if (profileModal) profileModal.classList.remove('active');
+    if (_closeProfileCleanup) {
+      _closeProfileCleanup();
+      _closeProfileCleanup = null;
+    } else if (profileModal) {
+      profileModal.classList.remove('active');
+    }
   }
 
   if (btnEditProfile) btnEditProfile.addEventListener('click', openProfileModal);
@@ -1189,7 +1389,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   /* -----------------------------------------------------------------
-   * 14. MOTEUR EXPERT MÉCANO VIRTUEL (DIAGNOSTIC EN LANGAGE NATUREL)
+   * 13. MOTEUR EXPERT MÉCANO VIRTUEL (DIAGNOSTIC EN LANGAGE NATUREL)
    * ----------------------------------------------------------------- */
   const mecanoInput = document.getElementById('mecano-input');
   const btnAskMecano = document.getElementById('btn-ask-mecano');
@@ -1305,7 +1505,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return text
       .toLowerCase()
       .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[̀-ͯ]/g, '')
       .replace(/[^a-z0-9\s]/g, ' ')
       .trim();
   }
@@ -1503,7 +1703,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   /* -----------------------------------------------------------------
-   * 15. CALCULATEUR & MÉLANGEUR 2-TEMPS INTELLIGENT
+   * 14. CALCULATEUR & MÉLANGEUR 2-TEMPS INTELLIGENT
    * ----------------------------------------------------------------- */
   const oilFuelSlider = document.getElementById('oil-fuel-slider');
   const oilFuelVal = document.getElementById('oil-fuel-val');
@@ -1524,7 +1724,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const fuelLiters = parseFloat(oilFuelSlider.value);
     const isFullTank = Math.abs(fuelLiters - 5.2) < 0.05;
-    
+
     if (oilFuelVal) {
       oilFuelVal.textContent = isFullTank ? '5,2 Litres (Plein 50V)' : `${fuelLiters.toFixed(1)} Litres`;
     }
@@ -1627,7 +1827,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   /* -----------------------------------------------------------------
-   * 17. CATALOGUE RÉFÉRENCES, PRIX & MARCHANDS SPÉCIALISÉS
+   * 15. CATALOGUE RÉFÉRENCES, PRIX & MARCHANDS SPÉCIALISÉS
    * ----------------------------------------------------------------- */
   const refSearchInput = document.getElementById('ref-search-input');
   const refSearchClear = document.getElementById('ref-search-clear');
@@ -1877,7 +2077,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   /* -----------------------------------------------------------------
-   * 18. PWA — INSTALLATION & FONCTIONNEMENT HORS LIGNE (SERVICE WORKER)
+   * 16. PWA — INSTALLATION & FONCTIONNEMENT HORS LIGNE (SERVICE WORKER)
    * -----------------------------------------------------------------
    * Ne fonctionne que si le site est servi en http(s) (ou localhost) : les
    * navigateurs refusent les service workers sur une page ouverte en
@@ -1935,7 +2135,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   /* -----------------------------------------------------------------
-   * 19. CARNET D'ENTRETIEN & SUIVI KILOMÉTRIQUE
+   * 17. CARNET D'ENTRETIEN & SUIVI KILOMÉTRIQUE
    * -----------------------------------------------------------------
    * Tout est fourni par l'utilisateur (relevé compteur, intervalles de
    * rappel, entrées de carnet) : aucune valeur par défaut n'est inventée
@@ -2197,7 +2397,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   /* -----------------------------------------------------------------
-   * 20. CALCULATEUR DE BUDGET (ONGLET RÉFÉRENCES)
+   * 18. CALCULATEUR DE BUDGET (ONGLET RÉFÉRENCES)
    * -----------------------------------------------------------------
    * Construit dynamiquement à partir des .ref-card déjà présentes dans le
    * DOM (catalogue de l'onglet Références) : aucun prix n'est dupliqué ou
@@ -2308,6 +2508,394 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (budgetChecklist) {
     renderBudget();
+  }
+
+  /* -----------------------------------------------------------------
+   * 19. GLOSSAIRE DES TERMES TECHNIQUES
+   * ----------------------------------------------------------------- */
+  const glossaireSearch = document.getElementById('glossaire-search');
+  const glossaireList = document.getElementById('glossaire-list');
+  const glossaireEmptyMsg = document.getElementById('glossaire-empty-msg');
+
+  function normalizeForSearch(str) {
+    return str
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '');
+  }
+
+  if (glossaireSearch && glossaireList) {
+    const glossaireItems = Array.from(glossaireList.querySelectorAll('.glossaire-item'));
+    glossaireSearch.addEventListener('input', () => {
+      const query = normalizeForSearch(glossaireSearch.value.trim());
+      let visibleCount = 0;
+      glossaireItems.forEach((item) => {
+        const haystack = normalizeForSearch(item.textContent || '');
+        const match = query === '' || haystack.includes(query);
+        item.style.display = match ? '' : 'none';
+        if (match) visibleCount += 1;
+      });
+      if (glossaireEmptyMsg) {
+        glossaireEmptyMsg.style.display = visibleCount === 0 ? '' : 'none';
+      }
+    });
+  }
+
+  /* -----------------------------------------------------------------
+   * 20. EXPORT PDF UNIFIÉ
+   * -----------------------------------------------------------------
+   * Construit une vue imprimable consolidée (profil, valeurs confirmées,
+   * carnet, rappels, budget) à partir des données déjà présentes sur le
+   * site (profil véhicule, store localStorage, DOM du budget) — aucune
+   * donnée n'est dupliquée en dur ici, et aucune valeur non confirmée
+   * n'est présentée comme certaine (voir CLAUDE.md §2 et §4).
+   * ----------------------------------------------------------------- */
+  const btnExportPdf = document.getElementById('btn-export-pdf');
+  const printExportView = document.getElementById('print-export-view');
+
+  function esc(str) {
+    const div = document.createElement('div');
+    div.textContent = String(str == null ? '' : str);
+    return div.innerHTML;
+  }
+
+  function buildPrintExportView() {
+    if (!printExportView) return;
+    const profile = (typeof currentProfile !== 'undefined' && currentProfile) ? currentProfile : null;
+    const todayStr = new Date().toLocaleDateString('fr-FR');
+
+    let html = '';
+    html += `<div class="print-section"><h1>Motobécane 50 VLC (AV7) — Résumé d'atelier</h1>`;
+    html += `<p>Généré le ${esc(todayStr)} depuis le guide d'atelier interactif. Les valeurs marquées ⚠️ ne sont pas confirmées par une source fiable — voir l'onglet Archives du site pour le détail.</p></div>`;
+
+    // --- Profil véhicule ---
+    html += `<div class="print-section"><h2>Profil véhicule</h2>`;
+    if (profile) {
+      html += `<table><tbody>`;
+      html += `<tr><td>Transmission (pignon × couronne)</td><td>${esc(profile.pignon)} × ${esc(profile.couronne)}</td></tr>`;
+      html += `<tr><td>Variateur</td><td>${esc(profile.variateur || '—')}</td></tr>`;
+      html += `<tr><td>Galets</td><td>${esc(profile.galetsMin)}–${esc(profile.galetsMax)} g</td></tr>`;
+      html += `<tr><td>Masselottes</td><td>${esc(profile.masselottes)} g</td></tr>`;
+      html += `<tr><td>Gicleur</td><td>${esc(profile.gicleur)}</td></tr>`;
+      html += `</tbody></table>`;
+    } else {
+      html += `<p>Profil non renseigné.</p>`;
+    }
+    html += `</div>`;
+
+    // --- Valeurs techniques confirmées (statique, honnête : uniquement ce qui est marqué ✅ ailleurs sur le site) ---
+    html += `<div class="print-section"><h2>Valeurs techniques confirmées (✅ RTM)</h2>`;
+    html += `<table><thead><tr><th>Élément</th><th>Valeur</th><th>Statut</th></tr></thead><tbody>`;
+    html += `<tr><td>Couple écrou de rotor du volant</td><td>5 m.kg (≈49 N·m)</td><td class="print-badge">✅ RTM</td></tr>`;
+    html += `<tr><td>Couple écrous de culasse</td><td>1,2 m.kg (≈11,8 N·m)</td><td class="print-badge">✅ RTM</td></tr>`;
+    html += `<tr><td>Couple écrous pipe d'admission</td><td>1 m.kg (≈9,8 N·m)</td><td class="print-badge">✅ RTM</td></tr>`;
+    html += `<tr><td>Écartement bougie</td><td>0,6 mm</td><td class="print-badge">✅ RTM</td></tr>`;
+    html += `<tr><td>Écartement rupteurs</td><td>0,35 mm</td><td class="print-badge">✅ RTM + 2 sources</td></tr>`;
+    html += `<tr><td>Avance à l'allumage (origine)</td><td>2 mm avant PMH</td><td class="print-badge">✅ RTM</td></tr>`;
+    html += `<tr><td>Avance à l'allumage (protocole recommandé)</td><td>Démarrer à 1,8 mm, ajuster 1,7–2 mm</td><td class="print-badge">⚠️ non confirmé, piste plausible</td></tr>`;
+    html += `<tr><td>Couple moteur AV7, rapport de variateur réel, circonférence pneu exacte</td><td>Voir onglet Archives</td><td class="print-badge">❓ non confirmé — ne pas utiliser de chiffre précis</td></tr>`;
+    html += `</tbody></table></div>`;
+
+    // --- Kilométrage et rappels ---
+    try {
+      const odoRaw = store.get('motobecane_50vcl_odometer');
+      const odo = odoRaw ? JSON.parse(odoRaw) : null;
+      const rappelsRaw = store.get('motobecane_50vcl_rappels');
+      const rappels = rappelsRaw ? JSON.parse(rappelsRaw) : [];
+      html += `<div class="print-section"><h2>Kilométrage &amp; rappels d'entretien</h2>`;
+      html += `<p>Kilométrage actuel : <strong>${odo && odo.km != null ? esc(odo.km) + ' km' : 'non renseigné'}</strong></p>`;
+      if (rappels.length) {
+        html += `<table><thead><tr><th>Rappel</th><th>Intervalle (km)</th><th>Dernier fait (km)</th><th>Prochaine échéance</th><th>Statut</th></tr></thead><tbody>`;
+        rappels.forEach((r) => {
+          const nextDue = (r.lastDoneKm || 0) + (r.intervalKm || 0);
+          const currentKm = odo && odo.km != null ? odo.km : 0;
+          const due = currentKm >= nextDue;
+          html += `<tr><td>${esc(r.label)}</td><td>${esc(r.intervalKm)}</td><td>${esc(r.lastDoneKm || 0)}</td><td>${esc(nextDue)}</td><td class="print-badge">${due ? '🔴 À faire' : '🟢 OK'}</td></tr>`;
+        });
+        html += `</tbody></table>`;
+      } else {
+        html += `<p>Aucun rappel configuré.</p>`;
+      }
+      html += `</div>`;
+    } catch (e) { /* ignore */ }
+
+    // --- Carnet d'entretien ---
+    try {
+      const carnetRaw = store.get('motobecane_50vcl_carnet');
+      const carnet = carnetRaw ? JSON.parse(carnetRaw) : [];
+      html += `<div class="print-section"><h2>Carnet d'entretien</h2>`;
+      if (carnet.length) {
+        html += `<table><thead><tr><th>Date</th><th>Km</th><th>Intervention</th><th>Notes</th></tr></thead><tbody>`;
+        carnet
+          .slice()
+          .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
+          .forEach((entry) => {
+            html += `<tr><td>${esc(entry.date)}</td><td>${entry.km != null ? esc(entry.km) : '—'}</td><td>${esc(entry.titre)}</td><td>${esc(entry.note || '')}</td></tr>`;
+          });
+        html += `</tbody></table>`;
+      } else {
+        html += `<p>Aucune intervention enregistrée.</p>`;
+      }
+      html += `</div>`;
+    } catch (e) { /* ignore */ }
+
+    // --- Budget ---
+    const budgetOwnedEl = document.getElementById('budget-total-owned');
+    const budgetRemainingEl = document.getElementById('budget-total-remaining');
+    const budgetAllEl = document.getElementById('budget-total-all');
+    if (budgetOwnedEl && budgetRemainingEl && budgetAllEl) {
+      html += `<div class="print-section"><h2>Budget du projet</h2>`;
+      html += `<table><tbody>`;
+      html += `<tr><td>Déjà en main</td><td>${esc(budgetOwnedEl.textContent)}</td></tr>`;
+      html += `<tr><td>Reste à acheter</td><td>${esc(budgetRemainingEl.textContent)}</td></tr>`;
+      html += `<tr><td>Total du projet (catalogue)</td><td>${esc(budgetAllEl.textContent)}</td></tr>`;
+      html += `</tbody></table></div>`;
+    }
+
+    printExportView.innerHTML = html;
+  }
+
+  if (btnExportPdf) {
+    btnExportPdf.addEventListener('click', () => {
+      buildPrintExportView();
+      window.setTimeout(() => window.print(), 50);
+    });
+  }
+
+  /* ----------------------------------------------------------------
+   * NAVIGATION PAR GROUPES (UX-01)
+   * Les .nav-btn[data-tab] gardent leur logique d'onglets (section 1) ;
+   * ici on ne gère que l'ouverture des groupes et le groupe "actif".
+   * ---------------------------------------------------------------- */
+  const navGroups = document.querySelectorAll('.nav-group');
+
+  function syncNavGroups() {
+    navGroups.forEach(group => {
+      group.classList.toggle('has-active', !!group.querySelector('.nav-btn.active'));
+    });
+  }
+
+  function closeNavGroups(except) {
+    navGroups.forEach(group => {
+      if (group === except) return;
+      group.classList.remove('open');
+      const t = group.querySelector('.nav-group-toggle');
+      if (t) t.setAttribute('aria-expanded', 'false');
+    });
+  }
+
+  navGroups.forEach(group => {
+    const toggle = group.querySelector('.nav-group-toggle');
+    if (!toggle) return;
+    toggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const willOpen = !group.classList.contains('open');
+      group.classList.toggle('open', willOpen);
+      toggle.setAttribute('aria-expanded', String(willOpen));
+      // Sur ordinateur, un seul menu déroulant à la fois
+      if (willOpen && window.matchMedia('(min-width: 769px)').matches) closeNavGroups(group);
+    });
+  });
+
+  // Après le choix d'un onglet : mettre à jour le groupe actif et refermer les menus (ordinateur)
+  document.querySelectorAll('.nav-btn[data-tab]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      syncNavGroups();
+      if (window.matchMedia('(min-width: 769px)').matches) closeNavGroups();
+    });
+  });
+
+  // Clic ailleurs ou Échap : fermer les menus déroulants (ordinateur)
+  document.addEventListener('click', (e) => {
+    if (window.matchMedia('(min-width: 769px)').matches && !e.target.closest('.nav-group')) closeNavGroups();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeNavGroups();
+  });
+
+  // À l'ouverture du tiroir mobile, déplier le groupe de l'onglet affiché
+  if (btnBurger) {
+    btnBurger.addEventListener('click', () => {
+      const activeGroup = document.querySelector('.nav-group.has-active');
+      if (activeGroup) {
+        activeGroup.classList.add('open');
+        const t = activeGroup.querySelector('.nav-group-toggle');
+        if (t) t.setAttribute('aria-expanded', 'true');
+      }
+    });
+  }
+
+  syncNavGroups();
+
+  /* ----------------------------------------------------------------
+   * TOASTS RÉUTILISABLES (UX-10) + RAPPEL MODE ÉTABLI (UX-09)
+   * ---------------------------------------------------------------- */
+  const toastRegion = document.createElement('div');
+  toastRegion.className = 'toast-region';
+  toastRegion.setAttribute('role', 'status');
+  toastRegion.setAttribute('aria-live', 'polite');
+  document.body.appendChild(toastRegion);
+
+  /**
+   * Affiche une notification courte.
+   * options : { type: 'success'|'info', duration: ms (0 = reste jusqu'à fermeture),
+   *             actionLabel, onAction }
+   */
+  function showToast(message, options) {
+    const opts = options || {};
+    const toast = document.createElement('div');
+    toast.className = 'toast toast-' + (opts.type || 'success');
+
+    const text = document.createElement('span');
+    text.textContent = message;
+    toast.appendChild(text);
+
+    function dismiss() {
+      toast.classList.remove('visible');
+      setTimeout(() => toast.remove(), 250);
+    }
+
+    if (opts.actionLabel && typeof opts.onAction === 'function') {
+      const actionBtn = document.createElement('button');
+      actionBtn.type = 'button';
+      actionBtn.className = 'toast-action';
+      actionBtn.textContent = opts.actionLabel;
+      actionBtn.addEventListener('click', () => { opts.onAction(); dismiss(); });
+      toast.appendChild(actionBtn);
+    }
+
+    if (opts.duration === 0) {
+      const closeBtn = document.createElement('button');
+      closeBtn.type = 'button';
+      closeBtn.className = 'toast-close';
+      closeBtn.setAttribute('aria-label', 'Fermer');
+      closeBtn.textContent = '✕';
+      closeBtn.addEventListener('click', dismiss);
+      toast.appendChild(closeBtn);
+    }
+
+    toastRegion.appendChild(toast);
+    window.requestAnimationFrame(() => toast.classList.add('visible'));
+    if (opts.duration !== 0) setTimeout(dismiss, opts.duration || 2500);
+    return toast;
+  }
+
+  // UX-09 : à la première visite, signaler le Mode Établi (une seule fois)
+  const THEME_HINT_KEY = 'motobecane_50vcl_theme_hint_seen';
+  if (!store.get(THEME_KEY) && !store.get(THEME_HINT_KEY) && btnThemeToggle) {
+    setTimeout(() => {
+      store.set(THEME_HINT_KEY, '1');
+      showToast('En atelier ? Le Mode Établi (fond sombre) se lit mieux avec des mains sales et peu de lumière.', {
+        type: 'info',
+        duration: 0,
+        actionLabel: 'Activer 🌙',
+        onAction: () => setTheme(true)
+      });
+    }, 2500);
+  }
+
+  // UX-10 : confirmations après les actions clés
+  if (btnExportPdf) {
+    btnExportPdf.addEventListener('click', () => {
+      showToast('Résumé prêt : choisissez « Enregistrer au format PDF » dans la fenêtre d\'impression.', { type: 'info', duration: 4500 });
+    });
+  }
+  if (btnSaveProfile) {
+    btnSaveProfile.addEventListener('click', () => showToast('Profil véhicule enregistré.'));
+  }
+  if (btnResetProfile) {
+    btnResetProfile.addEventListener('click', () => showToast('Profil remis aux valeurs par défaut.'));
+  }
+  if (btnOdoSave) {
+    btnOdoSave.addEventListener('click', () => {
+      const saved = loadOdo();
+      if (saved && saved.km === parseInt(odoInput.value, 10)) showToast('Kilométrage enregistré.');
+    });
+  }
+  // Toast seulement si l'ajout a réussi : on compare le nombre d'éléments avant/après
+  // (écouteur "capture" = exécuté avant le gestionnaire d'origine du bouton).
+  function toastOnAdd(btn, countFn, message) {
+    if (!btn) return;
+    let before = 0;
+    btn.addEventListener('click', () => { before = countFn(); }, true);
+    btn.addEventListener('click', () => { if (countFn() > before) showToast(message); });
+  }
+  toastOnAdd(btnCarnetAdd, () => loadCarnet().length, 'Intervention ajoutée au carnet.');
+  toastOnAdd(btnRappelAdd, () => loadRappels().length, 'Rappel ajouté.');
+
+  // UX-10 : validation d'une étape de tutoriel (animation + message, bravo en fin de tutoriel)
+  tutoChecks.forEach(cb => {
+    cb.addEventListener('change', () => {
+      if (!cb.checked) return;
+      const card = cb.closest('.tuto-step-card');
+      if (card) {
+        card.classList.add('just-done');
+        card.addEventListener('animationend', () => card.classList.remove('just-done'), { once: true });
+      }
+      const panel = cb.closest('.tutorial-panel');
+      const boxes = panel ? panel.querySelectorAll('input[data-tuto-task]') : [];
+      const allDone = boxes.length > 0 && Array.from(boxes).every(b => b.checked);
+      showToast(allDone ? 'Tutoriel terminé, bravo !' : 'Étape validée ✓', { duration: allDone ? 3500 : 1800 });
+    });
+  });
+
+  // UX-10 : petite pulsation quand un résultat de calcul change
+  ['recommended-roller-weight', 'oil-volume-ml', 'sim-speed-gps', 'sim-speed-huret'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el || typeof MutationObserver === 'undefined') return;
+    let lastText = el.textContent;
+    new MutationObserver(() => {
+      if (el.textContent === lastText) return;
+      lastText = el.textContent;
+      el.classList.remove('value-pulse');
+      void el.offsetWidth; // relance l'animation
+      el.classList.add('value-pulse');
+    }).observe(el, { childList: true, characterData: true, subtree: true });
+  });
+
+  /* ----------------------------------------------------------------
+   * SOMMAIRES D'ONGLET & SECTIONS REPLIABLES (UX-05)
+   * ---------------------------------------------------------------- */
+  document.querySelectorAll('.tab-toc a[href^="#"]').forEach(link => {
+    link.addEventListener('click', (e) => {
+      const target = document.getElementById(link.getAttribute('href').slice(1));
+      if (!target) return;
+      e.preventDefault();
+      // Si la cible est une carte repliable, on la déplie avant de s'y rendre
+      const det = target.querySelector(':scope > details.collapsible');
+      if (det) det.open = true;
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
+
+  // Impression : tout déplier pour ne rien perdre, puis restaurer l'état d'avant
+  let detailsClosedBeforePrint = [];
+  window.addEventListener('beforeprint', () => {
+    detailsClosedBeforePrint = Array.from(document.querySelectorAll('details.collapsible:not([open])'));
+    detailsClosedBeforePrint.forEach(d => { d.open = true; });
+  });
+  window.addEventListener('afterprint', () => {
+    detailsClosedBeforePrint.forEach(d => { d.open = false; });
+    detailsClosedBeforePrint = [];
+  });
+
+  /* ----------------------------------------------------------------
+   * BOUTON RETOUR EN HAUT (UX-13)
+   * Apparaît après 400 px de défilement, disparaît en haut de page.
+   * ---------------------------------------------------------------- */
+  const btnScrollTop = document.getElementById('btn-scroll-top');
+  if (btnScrollTop) {
+    window.addEventListener('scroll', () => {
+      if (window.scrollY > 400) {
+        btnScrollTop.classList.add('visible');
+      } else {
+        btnScrollTop.classList.remove('visible');
+      }
+    }, { passive: true });
+
+    btnScrollTop.addEventListener('click', () => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
   }
 
 });

@@ -13,7 +13,7 @@
  * styles.css pour forcer la mise à jour du cache chez les utilisateurs.
  */
 
-const CACHE_VERSION = 'v13';
+const CACHE_VERSION = 'v17'; // Corrections contenu mécanique (bougie, mélange, chaîne, CT)
 const CACHE_NAME = `mob50vlc-shell-${CACHE_VERSION}`;
 
 const SHELL_FILES = [
@@ -28,6 +28,9 @@ const SHELL_FILES = [
 ];
 
 self.addEventListener('install', (event) => {
+  // NE PAS appeler self.skipWaiting() ici : le nouveau SW doit rester en attente
+  // ("waiting") jusqu'à ce que l'utilisateur confirme la mise à jour via le bandeau
+  // affiché par la page. L'activation immédiate rendrait ce bandeau inutile.
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       // addAll échouerait entièrement si UNE seule ressource est injoignable :
@@ -42,7 +45,6 @@ self.addEventListener('install', (event) => {
       );
     })
   );
-  self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
@@ -60,6 +62,8 @@ self.addEventListener('activate', (event) => {
 
 // Permet à la page de demander l'activation immédiate d'une nouvelle version
 // (voir le bandeau "nouvelle version" dans app.js).
+// C'est le SEUL endroit où skipWaiting() doit être appelé : uniquement quand
+// l'utilisateur a explicitement cliqué sur "Mettre à jour".
 self.addEventListener('message', (event) => {
   if (event.data === 'SKIP_WAITING') {
     self.skipWaiting();
