@@ -762,9 +762,9 @@
           </div>
 
           <div class="alert-box mt-3">
-            <strong>📏 Écartement des électrodes : 0,6 mm (RTM, confirmé)</strong>
+            <strong>📏 Écartement des électrodes — selon le modèle de bougie</strong>
             <p class="text-sm" style="margin: 4px 0 0;">
-              À vérifier à la jauge d'épaisseur à chaque dépose de bougie, avant de remonter — un écartement incorrect fausse la lecture de couleur ci-dessus et peut provoquer des ratés. Ne pas confondre avec l'écartement des rupteurs (0,35 mm, vis platinées), qui est une valeur totalement différente — voir le tutoriel « Rupteurs + Calage ».
+              La valeur dépend de la bougie montée : <strong>NGK B6HS</strong> (bougie standard, sans résistance) → <strong>0,6 mm</strong> (RTM, confirmé) ; <strong>NGK LB05E</strong> (bougie antiparasite à résistance intégrée, recommandée si allumage électronique) → <strong>0,3–0,4 mm</strong> (RTM + PDF MCF). En cas de doute, vérifiez la référence marquée sur la céramique de votre bougie avant de régler. À vérifier à la jauge d'épaisseur à chaque dépose, avant de remonter — un écartement incorrect fausse la lecture de couleur ci-dessus et peut provoquer des ratés. Ne pas confondre avec l'écartement des rupteurs (0,35 mm, vis platinées), qui est une valeur totalement différente — voir le tutoriel « Rupteurs + Calage ».
             </p>
           </div>
         </div>
@@ -858,7 +858,7 @@
               <div class="oil-ratio-selector">
                 <button class="oil-ratio-btn active" data-ratio="2.0">
                   <span class="ratio-percent">2,0%</span>
-                  <span class="ratio-label">100% Synthèse (Recommandé AV7)</span>
+                  <span class="ratio-label">100% Synthèse (bas de fourchette moderne)</span>
                 </button>
                 <button class="oil-ratio-btn" data-ratio="2.5">
                   <span class="ratio-percent">2,5%</span>
@@ -873,6 +873,9 @@
                   <span class="ratio-label">⚠️ Trop pauvre (Danger serrage)</span>
                 </button>
               </div>
+              <p class="text-sm" style="margin: 6px 0 0; color: var(--text-muted);">
+                💡 <strong>Repère historique :</strong> la RTM d'époque préconisait <strong>5 %</strong> avec l'huile BP Zoom d'origine (huile minérale de l'époque). Les huiles 2T 100 % synthèse modernes lubrifient mieux à moindre concentration — <strong>2 à 3 %</strong> est la fourchette consensus (PDF MCF). En dessous de 2 % il y a risque de serrage ; ne pas utiliser la position 1,5 % sauf indication contraire du fabricant de votre huile.
+              </p>
             </div>
 
             <div class="form-group mt-3">
@@ -2441,23 +2444,73 @@
           <div class="sim-slider-row">
             <div class="form-group">
               <label for="sim-rpm">Régime Moteur : <span id="sim-rpm-val" class="badge-value">6 000 tr/min</span></label>
-              <input type="range" id="sim-rpm" min="3500" max="7500" step="100" value="6000">
+              <input type="range" id="sim-rpm" min="2000" max="7500" step="100" value="6000">
               <div class="progress-indicator">
-                <span class="text-sm">4 500 : Accroche</span> • 
-                <span class="text-sm text-accent">5 800 : Couple Max AV7</span> • 
-                <span class="text-sm">6 500 : Allonge max</span>
+                <span class="text-sm text-accent">3 000 : Couple Max AV7 (RTM)</span> •
+                <span class="text-sm">4 700 : Puissance Max (Fiche Mines)</span> •
+                <span class="text-sm">6 000 : Régime élevé</span>
               </div>
             </div>
           </div>
 
-          <div class="sim-slider-row">
+          <!-- MODE AUTO : case à cocher pour basculer en calcul centrifuge -->
+          <div class="sim-slider-row" id="sim-auto-toggle-row">
+            <div class="form-group">
+              <label class="form-check-label" style="display:flex;align-items:center;gap:10px;cursor:pointer;font-weight:600;">
+                <input type="checkbox" id="sim-auto-mode" style="width:17px;height:17px;cursor:pointer;accent-color:var(--primary-orange);">
+                <span>Mode Auto variateur
+                  <span class="badge-value" style="font-size:0.78rem;margin-left:4px;">Modèle Centrifuge Mobymatic</span>
+                </span>
+              </label>
+              <p class="text-sm text-muted" style="margin-top:5px;line-height:1.5;">
+                Calcule l'ouverture du variateur automatiquement à partir du régime et du poids des galets
+                (F = m × ω² × r, calibré RTM). En mode auto, le slider Vario% ci-dessous est remplacé par le calcul.
+              </p>
+            </div>
+          </div>
+
+          <div class="sim-slider-row" id="sim-vario-manual-row">
             <div class="form-group">
               <label for="sim-vario">Ouverture du Variateur Mobymatic : <span id="sim-vario-val" class="badge-value">100% (Plein régime)</span></label>
               <input type="range" id="sim-vario" min="0" max="100" step="5" value="100">
               <div class="progress-indicator">
-                <span>0% : Gorge fermée (Démarrage côte)</span> ➔ 
+                <span>0% : Gorge fermée (Démarrage côte)</span> ➔
                 <span>100% : Courroie au sommet des joues</span>
               </div>
+            </div>
+          </div>
+
+          <!-- SLIDER POIDS GALETS (visible en mode auto uniquement) -->
+          <div class="sim-slider-row" id="sim-galet-mass-row" style="display:none;">
+            <div class="form-group">
+              <label for="sim-galet-mass">Poids des galets : <span id="sim-galet-mass-val" class="badge-value">5,5 g</span></label>
+              <input type="range" id="sim-galet-mass" min="3.0" max="8.0" step="0.5" value="5.5">
+              <div class="progress-indicator">
+                <span>3,0 g : Très léger (moto-kit)</span> ➔
+                <span class="text-accent">5,5 g : Standard AV7</span> ➔
+                <span>8,0 g : Très lourd (couple bas)</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- PANNEAU PRÉDICTIONS MODE AUTO -->
+          <div class="sim-telemetry-strip" id="sim-auto-predictions" style="display:none;background:var(--surface-alt);border:1px solid var(--border-color);border-radius:8px;padding:10px 14px;margin-bottom:4px;">
+            <div class="sim-telemetry-item">
+              <span class="telemetry-lbl">Début ouverture vario</span>
+              <strong id="pred-rpm-open" style="color:var(--primary-orange);">—</strong>
+            </div>
+            <div class="sim-telemetry-item">
+              <span class="telemetry-lbl">Pleine ouverture vario</span>
+              <strong id="pred-rpm-full" style="color:var(--primary-orange);">—</strong>
+            </div>
+            <div class="sim-telemetry-item">
+              <span class="telemetry-lbl">Vario% calculé</span>
+              <strong id="pred-vario-pct" style="color:var(--primary-orange);">—</strong>
+            </div>
+            <div class="sim-telemetry-item" style="flex-basis:100%;margin-top:4px;">
+              <span class="text-sm text-muted" style="font-size:0.78rem;">
+                ⚠️ Modèle simplifié (rampe à angle constant, sans ressort de rappel). Les valeurs réelles dépendent de l'usure des rampes et de la tension de courroie.
+              </span>
             </div>
           </div>
 
@@ -2567,7 +2620,7 @@
           <div class="pro-tip">
             <strong>💡 Le Secret de la Vitesse avec vos Galets 5,5g :</strong>
             <p>
-              Sur l'AV7, le pignon de 11 permet d'atteindre le régime de résonance d'échappement plus rapidement. Avec des galets programmés à 5,5g, le moteur resterait « calé » autour de <strong>5 800 tr/min</strong> sur la plage 15-45 km/h environ (estimation, non confirmée par un banc de mesure), continuant d'accélérer au-delà — voir le simulateur de vitesse pour une estimation de la vitesse de pointe de votre configuration.
+              Sur l'AV7, le pignon de 11 permet d'atteindre le régime de couple maximum plus rapidement. Avec des galets programmés à 5,5g, le moteur resterait dans sa zone de couple fort autour de <strong>3 000 tr/min</strong> (RTM — couple max AV7) sur la plage 15-45 km/h environ, continuant d'accélérer jusqu'à la puissance max vers 4 700 tr/min — voir le simulateur de vitesse pour une estimation de la vitesse de pointe de votre configuration.
             </p>
           </div>
         </div>
@@ -2592,7 +2645,7 @@
 
         <div class="alert-box">
           <strong>❓ Pourquoi pas de courbe de couple en N·m ?</strong><br>
-          Aucune des sources de ce projet (RTM, fiche Mines illustrative, docs IA transmis) ne donne des chiffres de couple cohérents entre eux pour l'AV7 — ils se contredisent même sur le rapport de variateur. Plutôt que d'afficher un chiffre inventé, la courbe grise montre seulement la <em>forme</em> probable (où le moteur pousse le plus fort), basée sur les régimes repères déjà utilisés sur ce site (accroche ~4 500, couple max ~5 800, allonge ~6 500 tr/min). Voir l'onglet <strong>Archives & Mines → Sources et Niveau de Confiance</strong> pour le détail des contradictions trouvées.
+          La courbe grise montre la <em>forme</em> indicative du couple (sans unité) : pic à ~3 000 tr/min (RTM + Fiche des Mines AV7, source primaire), puissance max à ~4 700 tr/min (Fiche des Mines). Pour la valeur en N·m, le RTM cite un couple maximal non chiffré ; les forums MCF avancent 3,04 N·m à 3 000 tr/min — non vérifié sur banc. Voir l'onglet <strong>Archives &amp; Mines → Sources et Niveau de Confiance</strong>.
         </div>
       </div>
     </div>
@@ -3261,7 +3314,7 @@
             </span>
           </div>
 
-          <p class="ref-card-desc">Galets en fibre de verre autolubrifiante avec inserts internes amovibles. Calibrés à 5,5 grammes pour votre AV7, ils bloquent le régime à 5 800 tr/min lors de la phase de montée.</p>
+          <p class="ref-card-desc">Galets en fibre de verre autolubrifiante avec inserts internes amovibles. Calibrés à 5,5 grammes pour votre AV7, ils maintiennent le moteur dans sa zone de couple fort (~3 000 tr/min, RTM) lors de la phase de montée en régime.</p>
 
           <div class="ref-advice-box">
             💡 Pesez vos 3 galets avec une balance de précision 0,01g pour garantir un équilibrage dynamique parfait et supprimer toute vibration parasite.
@@ -3466,10 +3519,10 @@
             </span>
           </div>
 
-          <p class="ref-card-desc">Rapport secondaire 4,91:1 offrant +9% de couple à la roue arrière par rapport au 12x54 usine. Permet au moteur AV7 de rester dans sa plage de résonance de 5 800 tr/min.</p>
+          <p class="ref-card-desc">Rapport secondaire 4,91:1 offrant +9% de couple à la roue arrière par rapport au 12x54 usine. Permet au moteur AV7 de rester dans sa plage de couple maximal (~3 000 tr/min, RTM) et d'atteindre la puissance max (~4 700 tr/min, Fiche des Mines).</p>
 
           <div class="ref-advice-box">
-            ⛓️ Réglez la flèche de la chaîne à 1,5 - 2 cm moteur éteint avec le pilote assis sur la selle pour tenir compte de l'alignement bras oscillant.
+            ⛓️ Réglez la flèche de la chaîne à <strong>environ 1 cm</strong> (RTM série 40/50), moteur éteint, avec le pilote assis sur la selle pour tenir compte de l'alignement du bras oscillant. Une flèche jusqu'à 1,5 cm reste acceptable avec une chaîne légèrement étirée — au-delà, la chaîne risque de sauter ou de frotter le carter.
           </div>
 
           <div class="ref-merchants-box">
@@ -4531,6 +4584,8 @@
             <li><strong>Vitesse réelle :</strong> mesurée au céléromètre sur banc, pour vérifier qu'elle ne dépasse pas 45 km/h.</li>
             <li><strong>Bruit :</strong> contrôle du niveau sonore et de la présence de la chicane d'échappement — déjà en vigueur depuis avril 2024.</li>
             <li><strong>2 roues de moins de 5 ans :</strong> non soumis au contrôle technique (une 50 VLC des années 1970 ne bénéficie évidemment pas de cette exemption).</li>
+            <li><strong>Tarif indicatif :</strong> entre <strong>50 et 80 €</strong> selon le centre agréé (variable, non plafonné réglementairement à ce jour).</li>
+            <li><strong>Délai transitoire :</strong> les véhicules immatriculés en <strong>2020 ou 2021</strong> doivent passer leur premier contrôle technique avant le <strong>31 décembre 2026</strong>. Pour les immatriculations antérieures (comme la 50 VLC), le premier contrôle était dû dès le 1er mars 2026.</li>
           </ul>
           <div class="step-box-alert" style="margin-top: 10px;">
             Absence de contrôle technique ou contrôle périmé constaté : amende forfaitaire de 135 € et immobilisation possible du véhicule jusqu'à régularisation.
@@ -5044,10 +5099,10 @@
 
   <!-- MODAL MÉMO RÉGLAGES PERSONNALISÉS -->
   <div id="memo-modal" class="memo-modal-backdrop">
-    <div class="memo-modal-card">
+    <div class="memo-modal-card" role="dialog" aria-modal="true" aria-labelledby="memo-modal-title">
       <div class="memo-modal-header">
         <div>
-          <h3>Fiche Mémo d'Atelier — Motobécane 50 VLC</h3>
+          <h3 id="memo-modal-title">Fiche Mémo d'Atelier — Motobécane 50 VLC</h3>
           <small class="text-muted">Configuration Optimale Sleeper & Réglages Validés</small>
         </div>
         <button id="btn-close-memo" class="btn-close-modal" aria-label="Fermer">&times;</button>
@@ -5105,10 +5160,10 @@
 
   <!-- MODAL : PROFIL VÉHICULE ÉDITABLE (pour tester d'autres configurations) -->
   <div id="profile-modal" class="memo-modal-backdrop">
-    <div class="memo-modal-card">
+    <div class="memo-modal-card" role="dialog" aria-modal="true" aria-labelledby="profile-modal-title">
       <div class="memo-modal-header">
         <div>
-          <h3>Profil Véhicule — Configuration de Simulation</h3>
+          <h3 id="profile-modal-title">Profil Véhicule — Configuration de Simulation</h3>
           <small class="text-muted">Modifiez ces valeurs pour tester d'autres hypothèses (galets, transmission, embrayage…)</small>
         </div>
         <button id="btn-close-profile" class="btn-close-modal" aria-label="Fermer">&times;</button>
